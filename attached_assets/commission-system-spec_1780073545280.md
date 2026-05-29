@@ -1,0 +1,354 @@
+# Spec: Multi-Tenant Commission System Web App
+
+## Context
+
+Boolean Strategies operates ops infrastructure for ~dozens of home-services clients (painting, contracting, etc.) who run their project management in Airtable. Today, commissions are implemented per-client as hand-rolled Airtable formulas, Prismatic flows, and ad-hoc scripts. This has produced:
+
+- **Per-client bespoke logic** that no one person can hold in their head. Paragon's v2 Commissions table has 95 fields; Roll Call's has 58. Every client is a snowflake.
+- **Fragile triggers** — formula drift, broken rollups, unpopulated Employee links (Roll Call had 70 orphan records); commission bugs surface weeks late at payroll time.
+- **No lifecycle state** — commissions are rows; "earned vs payable vs paid vs clawed-back" is implied by status enums and ad-hoc Type codes (Paragon: SL/SM/PM/PMM/REF/MSC/ADJ/PAY).
+- **Re-work for every new client** — onboarding a tenant means rebuilding the same calc primitives in a new base.
+
+This spec proposes a **multi-tenant web app** that owns commission calculation and lifecycle state in its own database, reads job/people/project data from each tenant's Airtable, and exposes a configurable rule library so most clients can be set up by parameterizing pre-built modules rather than writing new code.
+
+**Launch tenant: Paragon Painting Atlanta.** The spec is generalized for multi-tenant from day one, but every MVP design choice should be validated against Paragon's real commission rules (documented at `docs/paragon-commissions-v2-final-report.md`). Roll Call and other clients onboard in later phases — the rule library must be extensible enough to absorb them without rewrites.
+
+---
+
+## Goals
+
+1. **Single source of truth for commission state** — every accrual, payout, adjustment, and clawback is a row in the web app's own DB with full audit history, not a derived rollup in Airtable.
+2. **Pre-built rule library** — most common commission patterns (tiered %, GP gatekeeper, role splits, schedule-with-clawback bonus, addendum routing, performance bonuses) ship as configurable modules. Onboarding a client = picking modules and filling in parameters.
+3. **Tenant-agnostic schema mapping** — Airtable table and field names are configured per tenant. The app only assumes the *conceptual* entities (People, Jobs, Projects, Addendums) exist somewhere in the tenant's base. The implementing agent must never hard-code table or field names.
+4. **Operator-driven onboarding (Phase 1)** — Boolean staff connect a tenant's Airtable, map their schema, opt in to rules, and configure parameters. Data model is designed so client self-serve auth can be layered on later without rework.
+5. **Webhook-driven freshness** — Airtable webhooks fire on relevant record changes; the app recomputes affected commissions and updates the ledger.
+6. **Auditable and reversible** — every state transition (accrual created, marked payable, paid, clawed back, manually adjusted) is recorded. Recomputation never silently overwrites a paid commission; it produces an adjustment row.
+
+## Non-goals (v1)
+
+- Client-facing self-serve UI. Boolean operators only in Phase 1.
+- Write-back to Airtable. Airtable is read-only from the app's perspective; payroll export is via CSV / QBO sync in a later phase.
+- Replacing Prismatic. Prismatic flows continue to handle deal lifecycle, HubSpot sync, etc. This app subscribes to Airtable state; it does not replace the upstream pipeline.
+- Custom-DSL rule authoring. v1 is module-library only. Custom-code escape hatch can be added later if the module library proves insufficient.
+- Onboarding clients other than Paragon during MVP. The architecture is multi-tenant; the rollout is sequential.
+
+---
+
+## Architecture overview
+
+```
+                          ┌──────────────────────────────┐
+                          │       Tenant's Airtable      │
+                          │   (People/Jobs/Projects/     │
+                          │    Addendums — names vary)   │
+                          └──────────────┬───────────────┘
+                                         │ OAuth + Webhooks
+                                         ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    Commission Web App                            │
+│                                                                  │
+│   ┌──────────────┐  ┌─────────────────┐  ┌──────────────────┐    │
+│   │ Schema Map   │  │  Local Mirror   │  │ Rule Engine      │    │
+│   │ (per tenant) │→ │  (Postgres)     │→ │ (module library) │    │
+│   └──────────────┘  └─────────────────┘  └────────┬─────────┘    │
+│                                                   ▼              │
+│   ┌──────────────────────────────────────────────────────────┐   │
+│   │  Commission Ledger (state machine, audit log)            │   │
+│   └────────────────────┬─────────────────────────────────────┘   │
+│                        ▼                                         │
+│   ┌──────────────────────────────────────────────────────────┐   │
+│   │  Operator Dashboard (view/approve/reject/export)         │   │
+│   └──────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Tech stack
+
+**Decision deferred to implementing agent.** The agent must pick a stack on first iteration with these constraints:
+- Postgres (or equivalent relational DB) for the local mirror, ledger, and audit log. JSON columns for tenant-specific rule parameters and schema mappings.
+- Server-side framework with strong typing and good webhook ergonomics. Next.js + Prisma + TypeScript, FastAPI + SQLAlchemy + Pydantic, and Remix + Drizzle are all acceptable.
+- The agent must justify its choice in a one-paragraph ADR-style note and check with Dan before locking it in.
+
+---
+
+## Data model (canonical, in the web app's DB)
+
+```
+Tenant
+  ├── id, name, slug
+  ├── airtable_base_id, airtable_oauth_token (encrypted), webhook_secret
+  ├── created_at, status (active/paused)
+
+SchemaMapping  (one per Tenant)
+  ├── tenant_id
+  ├── people_table_id, people_field_map (jsonb: { name, role, ytd_sales, ... } → airtable_field_ids)
+  ├── jobs_table_id, jobs_field_map (jsonb: { sales_rep, manager, total, gp_pct, status, cancelled, ... })
+  ├── projects_table_id, projects_field_map
+  ├── addendums_table_id, addendums_field_map
+  ├── (optional) other_tables: jsonb — for tenant-specific extras (e.g., Paragon's Reviews table)
+
+MirroredRecord  (local mirror of each Airtable record we care about)
+  ├── tenant_id, entity_kind (person/job/project/addendum), airtable_record_id
+  ├── canonical_fields jsonb (mapped to canonical shape)
+  ├── raw_fields jsonb (full Airtable payload for debugging)
+  ├── last_synced_at
+  ├── INDEX (tenant_id, entity_kind, airtable_record_id) UNIQUE
+
+CommissionPlan  (one or more per Tenant — supports plan changes over time)
+  ├── tenant_id, name, effective_from, effective_to
+  ├── rule_instances: [ RuleInstance ]
+
+RuleInstance
+  ├── plan_id, rule_module_key (e.g., "tiered_ytd_rate", "gp_gatekeeper")
+  ├── params jsonb (module-specific config)
+  ├── applies_to jsonb (which roles / which job types this rule fires for)
+  ├── enabled, order
+
+CommissionEntry  (the ledger row)
+  ├── id, tenant_id, person_id, source_kind (job/addendum/bonus/adjustment), source_id
+  ├── plan_id, rule_instance_ids[] (which rules contributed)
+  ├── amount, currency
+  ├── state (accrued | payable | paid | clawed_back | voided | disputed)
+  ├── accrued_at, payable_at, paid_at, clawed_back_at
+  ├── computation_snapshot jsonb (inputs at calc time — for audit)
+  ├── notes (operator-entered)
+  ├── INDEX (tenant_id, person_id, state)
+
+CommissionEvent  (immutable audit log)
+  ├── entry_id, event_kind (created | recomputed | state_change | manually_adjusted | clawed_back)
+  ├── before jsonb, after jsonb, actor (system | operator_user_id), at
+
+WebhookEvent  (inbox for incoming Airtable webhooks)
+  ├── tenant_id, payload jsonb, received_at, processed_at, error
+  ├── used to debounce + replay
+```
+
+Operator users (Boolean staff) live in a separate auth table; Phase 2 adds per-tenant client users with RBAC.
+
+---
+
+## Airtable integration layer
+
+### OAuth connection (per tenant)
+
+- Register an Airtable OAuth app at the Boolean org level.
+- Tenant onboarding flow: operator clicks "Connect Airtable" → OAuth handshake → app stores access token + refresh token, queries base list, operator picks the base.
+- Required scopes: `data.records:read`, `schema.bases:read`, `webhook:manage`.
+- Refresh tokens proactively before expiry; surface re-auth UI if refresh fails.
+
+### Schema mapping UI (this is the critical UX surface)
+
+After OAuth, the app does **not** assume any table names. Instead:
+
+1. Lists every table in the connected base with their fields.
+2. Presents a mapping wizard for each canonical entity:
+   - "Which table holds **People** (sales reps, PMs, crew)?" → operator picks.
+   - "Which field is their **Name**? **Role**? **YTD Sales rollup**? (skip if not present)" → operator maps each canonical field to an Airtable field, with the option to leave canonical fields unmapped.
+   - Same for Jobs, Projects, Addendums.
+3. Validates the mapping with a live sample (pulls 3 records, shows the canonical shape side-by-side with raw fields).
+4. Saves to `SchemaMapping`. Re-runnable when the client renames a field.
+
+**Canonical fields per entity (minimum the rule library needs):**
+
+| Entity | Canonical fields |
+|---|---|
+| Person | `name`, `role(s)`, `position`/`title`, `ytd_sales` (optional), `start_date`, `active` |
+| Job | `sales_rep`, `manager`/`project_manager`, `total_amount`, `gp_amount`, `gp_pct`, `status`, `cancelled`, `signed_date`, `completed_date`, `paid_date`, `lead_source` (optional) |
+| Project | `parent_job`, `pm`, `pmm` (optional), `gp_amount`, `status` |
+| Addendum | `parent_job` or `parent_project`, `amount`, `gp_amount`, `gp_pct`, `signed_date`, `status` |
+
+The implementing agent **must surface fields they don't recognize** during mapping and ask the operator whether they're relevant, rather than silently ignoring them.
+
+### Webhook subscription
+
+- On schema-map save, app creates an Airtable webhook scoped to the mapped tables.
+- Webhook posts to `/webhooks/airtable/:tenant_id` with signature verification.
+- Handler writes to `WebhookEvent`, then enqueues a sync job. Sync job pulls the changed records (Airtable webhooks include change cursors), updates `MirroredRecord`, and triggers recomputation for any commission entries whose source is the changed record (or whose rule depends on the changed entity for an aggregate — e.g., YTD-tiered rules depend on all of a person's prior jobs).
+
+### Initial backfill
+
+On first connect, paginate every record in the mapped tables, populate `MirroredRecord`, then run a full commission computation pass against the configured plan. Operator reviews output in the dashboard before any commissions are marked payable.
+
+---
+
+## Rule module library
+
+Each rule is a typed module with a stable `key`, a JSON-schema-described `params` shape, and an interface like:
+
+```
+interface RuleModule {
+  key: string
+  describe(params): string  // human-readable summary for the UI
+  applies(context): boolean  // should this rule fire for this trigger?
+  compute(context, params, mirror): CommissionEntry[]  // emits ledger entries
+  recompute(entry, context, params, mirror): { newAmount, reason } | { unchanged: true }
+}
+```
+
+### v1 modules (covers Paragon + ~80% of clients)
+
+1. **`tiered_ytd_rate`** — Rate steps up at YTD-sales thresholds. Params: `tiers: [{ threshold, rate }]`, `mode: 'marginal' | 'retroactive'`, `base: 'job_total' | 'job_gp' | 'project_gp'`, `applies_to_role`, `ytd_source: 'mirror' | 'airtable_field'`.
+   - *Paragon SL1 fits this exactly: 2.5/3/4/4.5% at $1M / $1.5M / $2M thresholds.*
+
+2. **`gp_gatekeeper`** — Suppress or reduce commission if GP% below threshold. Params: `min_gp_pct`, `below_behavior: 'zero' | 'reduced_rate'`, `reduced_rate` (optional). Composable with other rules (runs as a post-filter).
+   - *Paragon: 40% floor. Roll Call PM: 45% floor.*
+
+3. **`flat_rate`** — Single % of a base. Params: `rate`, `base`, `applies_to_role`.
+   - *Paragon SM1: 0.75% of job total; Paragon PM1/PMM1: 2% of project GP.*
+
+4. **`role_split`** — Multiple payees on one job, fixed % split. Params: `splits: [{ role, share_pct }]`, `base`.
+
+5. **`flat_amount`** — Flat $ per qualifying event. Params: `amount`, `event_kind`, `exclude_if_role_in` (optional).
+   - *Paragon REF: $50 referral, excluded if person is SL/SM.*
+
+6. **`per_linked_record_bonus`** — Flat $ per linked record of a given type (e.g., 5-star reviews). Params: `amount`, `linked_table`, `filter_condition`, `applies_to_role`.
+   - *Paragon: $50 per linked 5-star review for PM/PMM.*
+
+7. **`schedule_with_clawback`** — Pay $X on event A, claw back on event B within window. Params: `trigger_event`, `amount`, `clawback_event`, `clawback_window_days`.
+   - *Roll Call: Christine's $25 YCBM appointment-setter bonus.*
+
+8. **`addendum_routing`** — How addendum commissions route. Params: `routing: 'inherit_from_parent' | 'reroute_to_role' | 'treat_as_new_deal'`, `rate_behavior: 'same' | 'override'`, `override_rate` (optional).
+   - *Default for Paragon: inherit_from_parent.*
+
+9. **`quarterly_threshold_bonus`** — Flat $ if a quarterly metric clears a bar. Params: `period: 'quarter'`, `metric` (e.g., AR days), `threshold`, `amount`.
+   - *Paragon: $500 AR bonus, 8-day AR threshold.*
+
+10. **`role_exclusion`** — Suppress a rule if person already qualifies under another role. Params: `excluded_if_role_in`. Cross-cuts other modules.
+    - *Paragon: SM cut excludes Seth-sold jobs.*
+
+11. **`manual_adjustment`** — Operator-entered $ amount tied to a person + reason. Not really a rule; surfaced here so the dashboard can create adjustment entries that flow through the same ledger.
+
+Each module ships with a unit-test fixture set built from real (anonymized) Paragon and Roll Call records — adding a new module without fixtures is a CI failure.
+
+---
+
+## Commission lifecycle
+
+```
+   created ──► accrued ──► payable ──► paid
+                  │             │
+                  ▼             ▼
+              voided       clawed_back
+                  │             │
+                  └──► disputed ◄┘
+```
+
+- **Accrued**: rule fired, amount computed, but not yet eligible for payout (e.g., job signed but not completed).
+- **Payable**: passed all gate conditions (job completed and final invoice paid, or whatever the tenant's plan defines). Eligible for next payroll export.
+- **Paid**: marked paid by operator after payroll export.
+- **Clawed-back**: source event reversed (job cancelled, refund issued); produces a negative adjustment entry rather than mutating the original.
+- **Voided**: rule was misconfigured or operator zeros out before payout; original entry stays, voided event recorded.
+- **Disputed**: held by operator pending review.
+
+**Transition triggers** are configurable per plan: which Airtable state corresponds to "payable," which to "paid." The implementing agent must ask the operator during plan setup, never assume.
+
+**Recomputation discipline**: if mirrored data changes after an entry is `paid`, the system does NOT overwrite the paid amount. It creates a new `manual_adjustment` or `clawback` entry that nets out the difference, preserving payroll integrity.
+
+---
+
+## Operator dashboard (MVP)
+
+- **Tenant list** → switch active tenant.
+- **Per-person commission ledger** — filter by state, period, source. Shows full audit log per entry.
+- **Per-period payroll view** — group by person, sum payable amounts for selected period, export CSV.
+- **Plan editor** — drag-and-drop rule modules into the plan, edit params, save as new effective-dated version. Diff against prior plan version.
+- **Schema-map editor** — re-run mapping wizard when a tenant's base changes.
+- **Recompute preview** — operator-triggered dry-run that shows what would change if recomputation ran now, before applying.
+- **Webhook health** — last received, failed events queue, replay button.
+
+---
+
+## Paragon-specific launch checklist
+
+After core build, before going live for Paragon:
+
+1. Connect to Paragon's base (`appoMG3V2gfaN2dEo`).
+2. Map schema against the existing v2 Commissions table for reconciliation: People, Jobs, Projects, Addendums, Reviews (extra table for the 5-star bonus).
+3. Build plan with: `tiered_ytd_rate` (SL1, SL2), `flat_rate` (SM1, PM1, PMM1), `gp_gatekeeper` (40%), `flat_amount` (REF, $50 with role exclusion), `per_linked_record_bonus` ($50 per 5-star), `quarterly_threshold_bonus` (AR $500), `role_exclusion` (SM cut excludes Seth-sold jobs, applies only to SL1/SL2).
+4. Backfill: pull all jobs from a recent fully-reconciled quarter, run computation, compare line-by-line against Paragon's current v2 table. Diff is the acceptance test. Known open questions to verify with Seth/Heidi during this step are listed in `commissions-v2-final-report-2026-04-22.md`:
+   - Seth-sold jobs: broad exclusion vs SM-cut only?
+   - SM scope: SL1/SL2 only vs anyone?
+   - Lila & Seth tail-payment intent.
+5. Operator sign-off → enable webhooks → start writing the ledger going forward. Existing Airtable Commissions table stays read-only during the parallel period.
+
+---
+
+## CRITICAL: Guidance for the implementing agent
+
+You are building this with **no prior context on any specific client's Airtable infrastructure**. Treat every tenant's schema as unknown. Do NOT assume:
+
+- That a table called "Jobs" exists. It might be "Deals," "Projects," "Work Orders." Ask.
+- That a field called "Sales Rep" exists. It might be "Salesperson," "Closer," "SL," "Producer." Ask.
+- That "GP%" is stored as a number, formula, or rollup. Ask which field, and confirm the type.
+- That role assignments live on the Person record. They might be on the Job (e.g., "Sales Rep Position at Time of Sale").
+- That status enums match across tenants. Paragon's "Approved/Declined" is not universal.
+
+**Required behavior**:
+
+1. **During schema mapping**, surface every field in the relevant tables and ask the operator (Dan, or whoever is onboarding the tenant) what each unfamiliar one is for. Do not silently ignore fields you don't recognize — they may be load-bearing for a custom rule.
+2. **Before implementing a rule module**, find or generate ≥3 real anonymized examples from the launch tenant's data and write them as unit-test fixtures. If you cannot find examples, the rule is not real yet — ask before building.
+3. **When you encounter ambiguity in tenant-specific commission logic** (e.g., "what does 'Type=ADJ' mean here?", "is this rule supposed to apply when role is null?"), STOP and ask Dan. Never guess. The per-client docs in `docs/` are the authoritative source at the time of writing; confirm with Dan if those docs look stale.
+4. **Read these before starting**:
+   - `docs/paragon-commissions-v2-final-report.md` — Paragon's full current rule set with open questions called out.
+   - `docs/paragon-commissions-schema-snapshot.md` — schema snapshot of the existing Commissions table (95 fields, formulas).
+   - `docs/roll-call-commission-overhaul-plan.md` — Roll Call's plan, useful as a second-tenant validation case for the rule library.
+5. **Tech-stack decision**: pick one, write a one-paragraph ADR justifying it, and check with Dan before locking in. Do not begin implementation without his go.
+6. **No write-back to Airtable in v1.** Even if it seems convenient, do not push computed commissions into the tenant's base. The web app DB is the source of truth.
+7. **OAuth secret + webhook secret + tenant tokens**: store encrypted at rest, never log. Use the patterns in `docs/tokens.md` of this workspace as the credential-handling baseline.
+8. **Audit before convenience**: every state transition, every recomputation, every operator action writes to `CommissionEvent`. Do not optimize this away.
+
+---
+
+## Phasing
+
+**Phase 0 (pre-build, sequential, no parallelization)**:
+- Stack ADR + Dan sign-off.
+- Airtable OAuth app registered, sandbox base set up.
+- Postgres schema migration tooling chosen, initial migration written for the data model above.
+
+**Phase 1 — MVP, Paragon-only**:
+- Tenant + OAuth + schema mapping UI.
+- Mirror + webhook ingestion + initial backfill.
+- Rule modules: `tiered_ytd_rate`, `gp_gatekeeper`, `flat_rate`, `flat_amount`, `role_exclusion`, `per_linked_record_bonus`, `quarterly_threshold_bonus`, `addendum_routing` (inherit-only variant), `manual_adjustment`.
+- Commission ledger + lifecycle states + audit log.
+- Operator dashboard: ledger view, per-period payroll export, plan editor.
+- Parallel-run reconciliation against Paragon's existing v2 Commissions table for one quarter.
+
+**Phase 2 — Roll Call onboarding**:
+- Add `schedule_with_clawback` module (Christine's bonus).
+- Add `role_split` if Roll Call needs it.
+- Validate the schema-mapping UX on a second tenant; fix any places where assumptions about Paragon's schema leaked in.
+
+**Phase 3 — generalization**:
+- Onboard 1–2 more clients to stress-test rule library coverage.
+- Add custom-code escape hatch if a rule can't be expressed in the library.
+- Begin RBAC + client self-serve auth design.
+
+---
+
+## Verification
+
+End-to-end:
+1. Connect a sandbox Airtable base via OAuth, map schema, configure a plan with one rule of each module type.
+2. Trigger an Airtable record change (create a Job) → confirm webhook received, mirror updated, commission entry created in `accrued`.
+3. Mark Job complete in Airtable → confirm entry transitions to `payable` per plan config.
+4. Operator marks paid → entry transitions to `paid`, audit event written.
+5. Cancel the Job in Airtable → confirm clawback entry created (NOT a mutation of the paid entry).
+6. Run parallel-reconciliation against Paragon's last reconciled quarter → diff against the v2 Commissions table line-by-line; any non-zero diff is investigated and resolved before go-live.
+
+Unit / integration:
+- Each rule module has fixture-based unit tests covering ≥3 real anonymized examples per tenant.
+- OAuth refresh path tested (token expiry, refresh, persistence).
+- Webhook signature verification tested (rejects unsigned, accepts signed, replays idempotently).
+- Recomputation idempotency: running compute twice on unchanged inputs produces no new ledger entries.
+
+---
+
+## Files for the implementing agent to read first
+
+- This spec (you're reading it) — `docs/commission-system-spec.md`.
+- `CLAUDE.md` (repo root) — workspace credential conventions.
+- `docs/tokens.md` — pattern for handling external service credentials.
+- `docs/paragon-commissions-v2-final-report.md` — launch tenant authoritative rules.
+- `docs/paragon-commissions-schema-snapshot.md` — launch tenant schema snapshot.
+- `docs/roll-call-commission-overhaul-plan.md` — Phase 2 tenant; read to ensure rule library generalizes.

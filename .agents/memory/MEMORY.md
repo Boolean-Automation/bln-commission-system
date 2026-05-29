@@ -1,0 +1,2 @@
+- [Commission System architecture](commission-system.md) — multi-tenant commission engine: recompute idempotency via dedupeKey, audit events, esbuild restart gotcha.
+- [api-zod codegen pitfalls](api-zod-codegen.md) — TS2308 name collision + timestamps-as-strings rules for the generated Zod barrel.

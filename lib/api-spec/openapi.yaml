@@ -3,13 +3,27 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Multi-tenant commission system API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: tenants
+    description: Tenant management
+  - name: people
+    description: Mirrored people records
+  - name: jobs
+    description: Mirrored job records
+  - name: schema
+    description: Tenant schema mapping
+  - name: rules
+    description: Rule module library and plans
+  - name: commissions
+    description: Commission ledger
+  - name: insights
+    description: Dashboard summaries and activity
 paths:
   /healthz:
     get:
@@ -24,7 +38,380 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /tenants:
+    get:
+      operationId: listTenants
+      tags: [tenants]
+      summary: List all tenants
+      responses:
+        "200":
+          description: List of tenants
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Tenant"
+
+  /tenants/{tenantId}:
+    get:
+      operationId: getTenant
+      tags: [tenants]
+      summary: Get a tenant by id
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+      responses:
+        "200":
+          description: Tenant detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Tenant"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /tenants/{tenantId}/dashboard:
+    get:
+      operationId: getDashboard
+      tags: [insights]
+      summary: Dashboard summary for a tenant
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+      responses:
+        "200":
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+
+  /tenants/{tenantId}/activity:
+    get:
+      operationId: getActivity
+      tags: [insights]
+      summary: Recent ledger activity for a tenant
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 30
+      responses:
+        "200":
+          description: Recent activity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ActivityItem"
+
+  /tenants/{tenantId}/payroll:
+    get:
+      operationId: getPayrollSummary
+      tags: [insights]
+      summary: Payroll summary grouped by person
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+      responses:
+        "200":
+          description: Payroll summary lines
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PayrollLine"
+
+  /tenants/{tenantId}/people:
+    get:
+      operationId: listPeople
+      tags: [people]
+      summary: List mirrored people for a tenant
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+      responses:
+        "200":
+          description: People records
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Person"
+
+  /tenants/{tenantId}/jobs:
+    get:
+      operationId: listJobs
+      tags: [jobs]
+      summary: List mirrored jobs for a tenant
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+      responses:
+        "200":
+          description: Job records
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Job"
+
+  /tenants/{tenantId}/schema-mapping:
+    get:
+      operationId: getSchemaMapping
+      tags: [schema]
+      summary: Get the tenant's Airtable schema mapping
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+      responses:
+        "200":
+          description: Schema mapping
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SchemaMapping"
+    put:
+      operationId: updateSchemaMapping
+      tags: [schema]
+      summary: Update the tenant's Airtable schema mapping
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SchemaMappingInput"
+      responses:
+        "200":
+          description: Updated schema mapping
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SchemaMapping"
+
+  /rule-modules:
+    get:
+      operationId: listRuleModules
+      tags: [rules]
+      summary: List the available rule modules in the library
+      responses:
+        "200":
+          description: Rule module catalog
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RuleModule"
+
+  /tenants/{tenantId}/plan:
+    get:
+      operationId: getActivePlan
+      tags: [rules]
+      summary: Get the tenant's active commission plan
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+      responses:
+        "200":
+          description: Active plan
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommissionPlan"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /rule-instances/{ruleInstanceId}:
+    patch:
+      operationId: updateRuleInstance
+      tags: [rules]
+      summary: Update a rule instance's params or enabled state
+      parameters:
+        - name: ruleInstanceId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RuleInstanceUpdate"
+      responses:
+        "200":
+          description: Updated rule instance
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RuleInstance"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /tenants/{tenantId}/recompute:
+    post:
+      operationId: recomputeCommissions
+      tags: [commissions]
+      summary: Run a full commission computation pass for the tenant
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+      responses:
+        "200":
+          description: Recompute result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecomputeResult"
+
+  /tenants/{tenantId}/commissions:
+    get:
+      operationId: listCommissions
+      tags: [commissions]
+      summary: List commission ledger entries for a tenant
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+        - name: state
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/CommissionState"
+        - name: type
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/CommissionType"
+        - name: personId
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Commission entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CommissionEntry"
+
+  /commissions/{entryId}:
+    get:
+      operationId: getCommission
+      tags: [commissions]
+      summary: Get a single commission entry
+      parameters:
+        - $ref: "#/components/parameters/EntryId"
+      responses:
+        "200":
+          description: Commission entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommissionEntry"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      operationId: adjustCommission
+      tags: [commissions]
+      summary: Adjust a commission entry amount or notes
+      parameters:
+        - $ref: "#/components/parameters/EntryId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CommissionAdjustment"
+      responses:
+        "200":
+          description: Updated entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommissionEntry"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /commissions/{entryId}/transition:
+    post:
+      operationId: transitionCommission
+      tags: [commissions]
+      summary: Transition a commission entry to a new lifecycle state
+      parameters:
+        - $ref: "#/components/parameters/EntryId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CommissionTransition"
+      responses:
+        "200":
+          description: Updated entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommissionEntry"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /commissions/{entryId}/events:
+    get:
+      operationId: getCommissionEvents
+      tags: [commissions]
+      summary: Get the audit log for a commission entry
+      parameters:
+        - $ref: "#/components/parameters/EntryId"
+      responses:
+        "200":
+          description: Audit events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CommissionEvent"
+
 components:
+  parameters:
+    TenantId:
+      name: tenantId
+      in: path
+      required: true
+      schema:
+        type: string
+    EntryId:
+      name: entryId
+      in: path
+      required: true
+      schema:
+        type: string
+  responses:
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
   schemas:
     HealthStatus:
       type: object
@@ -34,3 +421,446 @@ components:
       required:
         - status
 
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+
+    CommissionState:
+      type: string
+      enum: [accrued, payable, paid, clawed_back, voided, disputed]
+
+    CommissionType:
+      type: string
+      enum: [SL, SM, PM, PMM, REF, MSC, ADJ, PAY, ARB]
+
+    EntityKind:
+      type: string
+      enum: [person, job, project, addendum]
+
+    Tenant:
+      type: object
+      required: [id, name, slug, status, airtableConnected, peopleCount, jobsCount, entryCount, createdAt]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        slug:
+          type: string
+        status:
+          type: string
+          enum: [active, paused]
+        airtableBaseId:
+          type: ["string", "null"]
+        airtableConnected:
+          type: boolean
+        peopleCount:
+          type: integer
+        jobsCount:
+          type: integer
+        entryCount:
+          type: integer
+        createdAt:
+          type: string
+
+    Person:
+      type: object
+      required: [id, tenantId, name, roles, active]
+      properties:
+        id:
+          type: string
+        tenantId:
+          type: string
+        airtableRecordId:
+          type: ["string", "null"]
+        name:
+          type: string
+        roles:
+          type: array
+          items:
+            type: string
+        position:
+          type: ["string", "null"]
+        ytdSales:
+          type: ["number", "null"]
+        startDate:
+          type: ["string", "null"]
+        active:
+          type: boolean
+
+    Job:
+      type: object
+      required: [id, tenantId, jobNumber, status, cancelled]
+      properties:
+        id:
+          type: string
+        tenantId:
+          type: string
+        airtableRecordId:
+          type: ["string", "null"]
+        jobNumber:
+          type: string
+        customer:
+          type: ["string", "null"]
+        salesRep:
+          type: ["string", "null"]
+        manager:
+          type: ["string", "null"]
+        totalAmount:
+          type: ["number", "null"]
+        gpAmount:
+          type: ["number", "null"]
+        gpPct:
+          type: ["number", "null"]
+        status:
+          type: string
+        cancelled:
+          type: boolean
+        leadSource:
+          type: ["string", "null"]
+        signedDate:
+          type: ["string", "null"]
+        completedDate:
+          type: ["string", "null"]
+
+    FieldMapping:
+      type: object
+      required: [canonical, label, required, mapped]
+      properties:
+        canonical:
+          type: string
+        label:
+          type: string
+        required:
+          type: boolean
+        mapped:
+          type: boolean
+        airtableFieldId:
+          type: ["string", "null"]
+        airtableFieldName:
+          type: ["string", "null"]
+
+    EntityMapping:
+      type: object
+      required: [entityKind, label, fields, unrecognizedFields]
+      properties:
+        entityKind:
+          $ref: "#/components/schemas/EntityKind"
+        label:
+          type: string
+        tableId:
+          type: ["string", "null"]
+        tableName:
+          type: ["string", "null"]
+        fields:
+          type: array
+          items:
+            $ref: "#/components/schemas/FieldMapping"
+        unrecognizedFields:
+          type: array
+          items:
+            type: string
+
+    SchemaMapping:
+      type: object
+      required: [tenantId, entities]
+      properties:
+        tenantId:
+          type: string
+        entities:
+          type: array
+          items:
+            $ref: "#/components/schemas/EntityMapping"
+
+    SchemaMappingInput:
+      type: object
+      required: [entities]
+      properties:
+        entities:
+          type: array
+          items:
+            $ref: "#/components/schemas/EntityMapping"
+
+    RuleModule:
+      type: object
+      required: [key, name, category, description, summary, paramsSchema]
+      properties:
+        key:
+          type: string
+        name:
+          type: string
+        category:
+          type: string
+        description:
+          type: string
+        summary:
+          type: string
+        paramsSchema:
+          type: object
+          additionalProperties: true
+
+    RuleInstance:
+      type: object
+      required: [id, planId, ruleModuleKey, ruleModuleName, description, params, appliesTo, enabled, order]
+      properties:
+        id:
+          type: string
+        planId:
+          type: string
+        ruleModuleKey:
+          type: string
+        ruleModuleName:
+          type: string
+        description:
+          type: string
+        params:
+          type: object
+          additionalProperties: true
+        appliesTo:
+          type: object
+          additionalProperties: true
+        enabled:
+          type: boolean
+        order:
+          type: integer
+
+    RuleInstanceUpdate:
+      type: object
+      properties:
+        params:
+          type: object
+          additionalProperties: true
+        enabled:
+          type: boolean
+
+    CommissionPlan:
+      type: object
+      required: [id, tenantId, name, effectiveFrom, ruleInstances]
+      properties:
+        id:
+          type: string
+        tenantId:
+          type: string
+        name:
+          type: string
+        effectiveFrom:
+          type: string
+        effectiveTo:
+          type: ["string", "null"]
+        ruleInstances:
+          type: array
+          items:
+            $ref: "#/components/schemas/RuleInstance"
+
+    CommissionEntry:
+      type: object
+      required: [id, tenantId, personId, personName, type, sourceKind, amount, currency, state, createdAt]
+      properties:
+        id:
+          type: string
+        tenantId:
+          type: string
+        personId:
+          type: string
+        personName:
+          type: string
+        type:
+          $ref: "#/components/schemas/CommissionType"
+        sourceKind:
+          type: string
+        sourceId:
+          type: ["string", "null"]
+        sourceLabel:
+          type: ["string", "null"]
+        amount:
+          type: number
+        currency:
+          type: string
+        state:
+          $ref: "#/components/schemas/CommissionState"
+        positionAtCosted:
+          type: ["string", "null"]
+        ruleInstanceIds:
+          type: array
+          items:
+            type: string
+        computationSnapshot:
+          type: ["object", "null"]
+          additionalProperties: true
+        notes:
+          type: ["string", "null"]
+        accruedAt:
+          type: ["string", "null"]
+        payableAt:
+          type: ["string", "null"]
+        paidAt:
+          type: ["string", "null"]
+        clawedBackAt:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    CommissionAdjustment:
+      type: object
+      properties:
+        amount:
+          type: number
+        notes:
+          type: string
+
+    CommissionTransition:
+      type: object
+      required: [toState]
+      properties:
+        toState:
+          $ref: "#/components/schemas/CommissionState"
+        notes:
+          type: string
+
+    CommissionEvent:
+      type: object
+      required: [id, entryId, eventKind, actor, at]
+      properties:
+        id:
+          type: string
+        entryId:
+          type: string
+        eventKind:
+          type: string
+          enum: [created, recomputed, state_change, manually_adjusted, clawed_back]
+        before:
+          type: ["object", "null"]
+          additionalProperties: true
+        after:
+          type: ["object", "null"]
+          additionalProperties: true
+        actor:
+          type: string
+        at:
+          type: string
+
+    DashboardSummary:
+      type: object
+      required: [tenantId, entryCount, accruedTotal, payableTotal, paidTotal, clawedBackTotal, totalsByState, totalsByType, topEarners]
+      properties:
+        tenantId:
+          type: string
+        entryCount:
+          type: integer
+        accruedTotal:
+          type: number
+        payableTotal:
+          type: number
+        paidTotal:
+          type: number
+        clawedBackTotal:
+          type: number
+        totalsByState:
+          type: array
+          items:
+            $ref: "#/components/schemas/StateTotal"
+        totalsByType:
+          type: array
+          items:
+            $ref: "#/components/schemas/TypeTotal"
+        topEarners:
+          type: array
+          items:
+            $ref: "#/components/schemas/EarnerTotal"
+
+    StateTotal:
+      type: object
+      required: [state, count, amount]
+      properties:
+        state:
+          $ref: "#/components/schemas/CommissionState"
+        count:
+          type: integer
+        amount:
+          type: number
+
+    TypeTotal:
+      type: object
+      required: [type, count, amount]
+      properties:
+        type:
+          $ref: "#/components/schemas/CommissionType"
+        count:
+          type: integer
+        amount:
+          type: number
+
+    EarnerTotal:
+      type: object
+      required: [personId, personName, amount, entryCount]
+      properties:
+        personId:
+          type: string
+        personName:
+          type: string
+        amount:
+          type: number
+        entryCount:
+          type: integer
+
+    ActivityItem:
+      type: object
+      required: [id, entryId, eventKind, actor, at, summary]
+      properties:
+        id:
+          type: string
+        entryId:
+          type: string
+        eventKind:
+          type: string
+        actor:
+          type: string
+        at:
+          type: string
+        summary:
+          type: string
+        personName:
+          type: ["string", "null"]
+        amount:
+          type: ["number", "null"]
+
+    PayrollLine:
+      type: object
+      required: [personId, personName, accruedTotal, payableTotal, paidTotal, netOwed, entryCount]
+      properties:
+        personId:
+          type: string
+        personName:
+          type: string
+        position:
+          type: ["string", "null"]
+        accruedTotal:
+          type: number
+        payableTotal:
+          type: number
+        paidTotal:
+          type: number
+        netOwed:
+          type: number
+        entryCount:
+          type: integer
+
+    RecomputeResult:
+      type: object
+      required: [tenantId, entriesCreated, entriesUpdated, entriesUnchanged, adjustmentsCreated, ranAt]
+      properties:
+        tenantId:
+          type: string
+        entriesCreated:
+          type: integer
+        entriesUpdated:
+          type: integer
+        entriesUnchanged:
+          type: integer
+        adjustmentsCreated:
+          type: integer
+        ranAt:
+          type: string

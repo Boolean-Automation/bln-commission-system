@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Commission System"
+version = "1.0.0"
+id = "artifacts/commissions"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 22476
+
+[services.development]
+run = "pnpm --filter @workspace/commissions run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/commissions", "run", "build" ]
+publicDir = "artifacts/commissions/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "22476"
+BASE_PATH = "/"
