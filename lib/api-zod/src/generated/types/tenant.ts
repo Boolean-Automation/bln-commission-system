@@ -15,6 +15,8 @@ export interface Tenant {
   /** @nullable */
   airtableBaseId?: string | null;
   airtableConnected: boolean;
+  /** True when every entity has a source table chosen and all required fields are mapped. */
+  requiredFieldsMapped: boolean;
   peopleCount: number;
   jobsCount: number;
   entryCount: number;

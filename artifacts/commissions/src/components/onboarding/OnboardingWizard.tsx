@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -12,6 +12,7 @@ import {
   getGetSchemaMappingQueryKey,
   type Tenant,
 } from "@workspace/api-client-react";
+import { getSetupStep } from "@/lib/setupStatus";
 import {
   Dialog,
   DialogContent,
@@ -55,15 +56,35 @@ const STEPS = [
   { title: "Plan", icon: Workflow },
 ] as const;
 
+/** Map a company's remaining setup step to the wizard step index to resume at. */
+function resumeStepFor(tenant: Tenant): Step {
+  switch (getSetupStep(tenant)) {
+    case "connect":
+      return 1;
+    case "map":
+      return 2;
+    case "sync":
+      return 3;
+    default:
+      return 1;
+  }
+}
+
 export function OnboardingWizard({
   open,
   onOpenChange,
   onCreated,
+  resumeTenant,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   /** Called with the new tenant id as soon as the company is created. */
   onCreated?: (tenantId: string) => void;
+  /**
+   * When provided, the wizard resumes setup for this existing company instead of
+   * creating a new one, jumping straight to the first unfinished step.
+   */
+  resumeTenant?: Tenant | null;
 }) {
   const { toast } = useToast();
   const [, navigate] = useLocation();
@@ -74,6 +95,21 @@ export function OnboardingWizard({
   const [tenantId, setTenantId] = useState<string | null>(null);
   const [baseId, setBaseId] = useState<string>("");
   const [mappingValid, setMappingValid] = useState(false);
+
+  // When opened in resume mode, seed state from the existing company and jump to
+  // its first unfinished step. Keyed on open so re-opening re-seeds cleanly.
+  useEffect(() => {
+    if (open && resumeTenant) {
+      setTenantId(resumeTenant.id);
+      setName(resumeTenant.name);
+      setBaseId(resumeTenant.airtableBaseId ?? "");
+      setMappingValid(resumeTenant.requiredFieldsMapped);
+      setStep(resumeStepFor(resumeTenant));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, resumeTenant?.id]);
+
+  const isResume = !!resumeTenant;
 
   const mappingRef = useRef<FieldMappingEditorHandle>(null);
 
@@ -146,6 +182,11 @@ export function OnboardingWizard({
           queryClient.invalidateQueries({
             queryKey: getGetSchemaMappingQueryKey(tenantId),
           });
+          // Setup status (airtableConnected) changed — refresh the list the
+          // tenant switcher and dashboard read from.
+          queryClient.invalidateQueries({
+            queryKey: getListTenantsQueryKey(),
+          });
           setStep(2);
         },
         onError: (err: unknown) => {
@@ -163,6 +204,10 @@ export function OnboardingWizard({
     mappingRef.current
       ?.save()
       .then(() => {
+        // requiredFieldsMapped may have flipped — refresh the tenant list.
+        queryClient.invalidateQueries({
+          queryKey: getListTenantsQueryKey(),
+        });
         toast({ title: "Field mapping saved" });
         setStep(3);
       })
@@ -181,6 +226,11 @@ export function OnboardingWizard({
       { tenantId },
       {
         onSuccess: (result) => {
+          // Counts changed — refresh the tenant list so "no synced data" state
+          // clears across the switcher and dashboard.
+          queryClient.invalidateQueries({
+            queryKey: getListTenantsQueryKey(),
+          });
           toast({
             title: "Company is ready",
             description: `Imported ${result.peopleUpserted} people and ${result.jobsUpserted} jobs.`,
@@ -203,10 +253,15 @@ export function OnboardingWizard({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Set up a new company</DialogTitle>
+          <DialogTitle>
+            {isResume
+              ? `Finish setting up ${resumeTenant?.name ?? "this company"}`
+              : "Set up a new company"}
+          </DialogTitle>
           <DialogDescription>
-            Stand up a brand-new company end to end: name it, connect Airtable,
-            map your fields, start a plan, and sync.
+            {isResume
+              ? "Pick up where you left off: connect Airtable, map your fields, start a plan, and sync."
+              : "Stand up a brand-new company end to end: name it, connect Airtable, map your fields, start a plan, and sync."}
           </DialogDescription>
         </DialogHeader>
 
@@ -335,8 +390,10 @@ export function OnboardingWizard({
         <DialogFooter className="flex items-center justify-between sm:justify-between">
           <Button
             variant="ghost"
-            onClick={() => setStep((s) => Math.max(0, s - 1) as Step)}
-            disabled={step === 0 || createTenant.isPending}
+            onClick={() =>
+              setStep((s) => Math.max(isResume ? 1 : 0, s - 1) as Step)
+            }
+            disabled={step <= (isResume ? 1 : 0) || createTenant.isPending}
           >
             <ChevronLeft className="size-4 mr-1" /> Back
           </Button>

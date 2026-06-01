@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq } from "drizzle-orm";
-import { db, tenantsTable } from "@workspace/db";
+import { db, tenantsTable, schemaMappingsTable } from "@workspace/db";
 import {
   ListAirtableBasesResponse,
   GetAirtableTablesParams,
@@ -13,7 +13,7 @@ import {
 } from "@workspace/api-zod";
 import { listBases, getBaseTables } from "../lib/airtable";
 import { syncTenantFromAirtable } from "../lib/airtableSync";
-import { serializeTenant } from "../lib/serialize";
+import { serializeTenant, isMappingComplete } from "../lib/serialize";
 import { tenantCounts } from "../lib/tenantCounts";
 
 const router: IRouter = Router();
@@ -71,7 +71,15 @@ router.put(
       return;
     }
     const counts = await tenantCounts(updated.id);
-    res.json(SetAirtableBaseResponse.parse(serializeTenant(updated, counts)));
+    const [mapping] = await db
+      .select()
+      .from(schemaMappingsTable)
+      .where(eq(schemaMappingsTable.tenantId, updated.id));
+    res.json(
+      SetAirtableBaseResponse.parse(
+        serializeTenant(updated, counts, isMappingComplete(mapping?.entities)),
+      ),
+    );
   },
 );
 

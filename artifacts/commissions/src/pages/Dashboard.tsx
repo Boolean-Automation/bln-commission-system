@@ -1,15 +1,18 @@
-import React from "react";
+import React, { useState } from "react";
 import { useTenant } from "@/contexts/TenantContext";
 import { useGetDashboard, useGetActivity, getGetDashboardQueryKey } from "@workspace/api-client-react";
 import { formatCurrency, formatDateTime } from "@/lib/format";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowRightLeft, DollarSign, Wallet, FileText, Activity } from "lucide-react";
+import { ArrowRightLeft, DollarSign, Wallet, FileText, Activity, AlertCircle, Database, ListChecks, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
+import { OnboardingWizard } from "@/components/onboarding/OnboardingWizard";
+import { getSetupStep, hasNoSyncedData, setupStepLabel } from "@/lib/setupStatus";
 
 export function Dashboard() {
   const { activeTenantId, activeTenant } = useTenant();
+  const [wizardOpen, setWizardOpen] = useState(false);
   
   const { data: dashboard, isLoading: isLoadingDashboard } = useGetDashboard(activeTenantId!, {
     query: {
@@ -60,6 +63,9 @@ export function Dashboard() {
     );
   }
 
+  const setupStep = activeTenant ? getSetupStep(activeTenant) : null;
+  const noData = activeTenant ? hasNoSyncedData(activeTenant) : false;
+
   return (
     <div className="space-y-6">
       <div>
@@ -68,6 +74,75 @@ export function Dashboard() {
           Overview for {activeTenant?.name}
         </p>
       </div>
+
+      {(setupStep === "connect" || setupStep === "map") && (
+        <Card className="border-amber-500/40 bg-amber-500/5">
+          <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 flex size-9 items-center justify-center rounded-full bg-amber-500/15 text-amber-600">
+                {setupStep === "connect" ? (
+                  <Database className="size-4" />
+                ) : (
+                  <ListChecks className="size-4" />
+                )}
+              </div>
+              <div>
+                <div className="font-semibold flex items-center gap-2">
+                  <AlertCircle className="size-4 text-amber-600" />
+                  Setup incomplete
+                </div>
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  {setupStep === "connect"
+                    ? "This company has no Airtable base connected yet. Connect a base, map your fields, and run an initial sync to start tracking commissions."
+                    : "This company's required fields aren't all mapped yet. Finish mapping and run an initial sync to start tracking commissions."}
+                </p>
+              </div>
+            </div>
+            <Button
+              className="shrink-0"
+              onClick={() => setWizardOpen(true)}
+            >
+              {setupStepLabel(setupStep)}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {setupStep === "sync" && (
+        <Card className="border-primary/30 bg-primary/5">
+          <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 flex size-9 items-center justify-center rounded-full bg-primary/15 text-primary">
+                <RefreshCw className="size-4" />
+              </div>
+              <div>
+                <div className="font-semibold">Ready to sync</div>
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  Setup is complete but no people or jobs have been imported yet.
+                  Run your first sync to pull data from Airtable and compute
+                  commissions.
+                </p>
+              </div>
+            </div>
+            <Button className="shrink-0" onClick={() => setWizardOpen(true)}>
+              Run first sync
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {setupStep === null && noData && (
+        <Card className="border-dashed">
+          <CardContent className="flex flex-col items-center justify-center gap-2 py-10 text-center">
+            <Database className="size-8 text-muted-foreground/40" />
+            <div className="font-medium">No synced data yet</div>
+            <p className="text-sm text-muted-foreground max-w-md">
+              This company hasn't imported any people or jobs. Once data is synced
+              from Airtable, your summaries and ledger will populate here.
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
@@ -180,6 +255,12 @@ export function Dashboard() {
           </CardContent>
         </Card>
       </div>
+
+      <OnboardingWizard
+        open={wizardOpen}
+        onOpenChange={setWizardOpen}
+        resumeTenant={activeTenant}
+      />
     </div>
   );
 }

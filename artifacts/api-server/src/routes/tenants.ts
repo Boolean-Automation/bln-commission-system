@@ -8,7 +8,7 @@ import {
   GetTenantParams,
   GetTenantResponse,
 } from "@workspace/api-zod";
-import { serializeTenant } from "../lib/serialize";
+import { serializeTenant, isMappingComplete } from "../lib/serialize";
 import { tenantCounts } from "../lib/tenantCounts";
 import { defaultEntityMappings } from "../lib/defaultSchemaMapping";
 
@@ -28,8 +28,16 @@ router.get("/tenants", async (_req, res): Promise<void> => {
     .select()
     .from(tenantsTable)
     .orderBy(tenantsTable.name);
+  const mappings = await db.select().from(schemaMappingsTable);
+  const mappingByTenant = new Map(mappings.map((m) => [m.tenantId, m]));
   const enriched = await Promise.all(
-    tenants.map(async (t) => serializeTenant(t, await tenantCounts(t.id))),
+    tenants.map(async (t) =>
+      serializeTenant(
+        t,
+        await tenantCounts(t.id),
+        isMappingComplete(mappingByTenant.get(t.id)?.entities),
+      ),
+    ),
   );
   res.json(ListTenantsResponse.parse(enriched));
 });
@@ -80,9 +88,11 @@ router.post("/tenants", async (req, res): Promise<void> => {
     return created!;
   });
 
+  // A freshly created tenant has the default skeleton mapping (no table chosen),
+  // so required fields are not yet mapped.
   res.json(
     CreateTenantResponse.parse(
-      serializeTenant(tenant, await tenantCounts(tenant.id)),
+      serializeTenant(tenant, await tenantCounts(tenant.id), false),
     ),
   );
 });
@@ -101,9 +111,17 @@ router.get("/tenants/:tenantId", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Tenant not found" });
     return;
   }
+  const [mapping] = await db
+    .select()
+    .from(schemaMappingsTable)
+    .where(eq(schemaMappingsTable.tenantId, tenant.id));
   res.json(
     GetTenantResponse.parse(
-      serializeTenant(tenant, await tenantCounts(tenant.id)),
+      serializeTenant(
+        tenant,
+        await tenantCounts(tenant.id),
+        isMappingComplete(mapping?.entities),
+      ),
     ),
   );
 });

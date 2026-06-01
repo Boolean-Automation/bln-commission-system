@@ -604,7 +604,7 @@ components:
 
     Tenant:
       type: object
-      required: [id, name, slug, status, airtableConnected, peopleCount, jobsCount, entryCount, createdAt]
+      required: [id, name, slug, status, airtableConnected, requiredFieldsMapped, peopleCount, jobsCount, entryCount, createdAt]
       properties:
         id:
           type: string
@@ -619,6 +619,9 @@ components:
           type: ["string", "null"]
         airtableConnected:
           type: boolean
+        requiredFieldsMapped:
+          type: boolean
+          description: True when every entity has a source table chosen and all required fields are mapped.
         peopleCount:
           type: integer
         jobsCount:

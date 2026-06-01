@@ -12,9 +12,26 @@ import type {
 const iso = (d: Date | null | undefined): string | null =>
   d ? d.toISOString() : null;
 
+/**
+ * A schema mapping is "complete" when every entity has a source table chosen and
+ * all of its required fields are mapped — the same bar the onboarding wizard
+ * enforces before allowing a sync.
+ */
+export function isMappingComplete(
+  entities: SchemaMappingRow["entities"] | null | undefined,
+): boolean {
+  if (!entities || entities.length === 0) return false;
+  return entities.every(
+    (entity) =>
+      !!entity.tableName &&
+      entity.fields.every((f) => !f.required || f.mapped),
+  );
+}
+
 export function serializeTenant(
   t: Tenant,
   counts: { peopleCount: number; jobsCount: number; entryCount: number },
+  requiredFieldsMapped: boolean,
 ) {
   return {
     id: t.id,
@@ -23,6 +40,7 @@ export function serializeTenant(
     status: t.status,
     airtableBaseId: t.airtableBaseId ?? null,
     airtableConnected: t.airtableConnected,
+    requiredFieldsMapped,
     peopleCount: counts.peopleCount,
     jobsCount: counts.jobsCount,
     entryCount: counts.entryCount,
