@@ -22,6 +22,7 @@ export * from './commissionPlan';
 export * from './commissionState';
 export * from './commissionTransition';
 export * from './commissionType';
+export * from './createTenant';
 export * from './dashboardSummary';
 export * from './earnerTotal';
 export * from './entityKind';

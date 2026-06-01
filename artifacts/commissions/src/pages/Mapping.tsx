@@ -1,9 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useRef, useState } from "react";
 import { useTenant } from "@/contexts/TenantContext";
 import { 
-  useGetSchemaMapping, 
   getGetSchemaMappingQueryKey,
-  useUpdateSchemaMapping,
   useGetTenant,
   getGetTenantQueryKey,
   useListAirtableBases,
@@ -11,23 +9,22 @@ import {
   getGetAirtableTablesQueryKey,
   useSetAirtableBase,
   useSyncFromAirtable,
-  type SchemaMappingInput,
-  type EntityMapping,
   type SyncResult
 } from "@workspace/api-client-react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Save, RefreshCw, Database, Link as LinkIcon, AlertCircle, CheckCircle2, ChevronRight, Server } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Save, RefreshCw, Database, AlertCircle, CheckCircle2, Server } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  FieldMappingEditor,
+  type FieldMappingEditorHandle,
+} from "@/components/mapping/FieldMappingEditor";
 
 function AirtableTableExplorer({ baseId }: { baseId: string }) {
   const { data: tables, isLoading } = useGetAirtableTables(baseId, {
@@ -220,50 +217,35 @@ function AirtableConnectionPanel({ activeTenantId }: { activeTenantId: string })
 export function Mapping() {
   const { activeTenantId } = useTenant();
   const { toast } = useToast();
-  const queryClient = useQueryClient();
 
-  const { data: mapping, isLoading } = useGetSchemaMapping(activeTenantId!, {
+  const { data: tenant } = useGetTenant(activeTenantId!, {
     query: {
       enabled: !!activeTenantId,
-      queryKey: activeTenantId ? getGetSchemaMappingQueryKey(activeTenantId) : ["mapping", "empty"]
-    }
+      queryKey: activeTenantId
+        ? getGetTenantQueryKey(activeTenantId)
+        : ["tenant", "empty"],
+    },
   });
 
-  const updateMapping = useUpdateSchemaMapping();
-
-  const [entitiesState, setEntitiesState] = useState<EntityMapping[]>([]);
-
-  useEffect(() => {
-    if (mapping) {
-      // Deep clone to allow safe editing
-      setEntitiesState(JSON.parse(JSON.stringify(mapping.entities)));
-    }
-  }, [mapping]);
-
-  const handleFieldChange = (entityIdx: number, fieldIdx: number, newName: string) => {
-    setEntitiesState(prev => {
-      const draft = [...prev];
-      draft[entityIdx].fields[fieldIdx].airtableFieldName = newName;
-      draft[entityIdx].fields[fieldIdx].mapped = !!newName.trim();
-      return draft;
-    });
-  };
+  const editorRef = useRef<FieldMappingEditorHandle>(null);
+  const [saving, setSaving] = useState(false);
 
   const handleSave = () => {
-    if (!activeTenantId) return;
-    const data: SchemaMappingInput = { entities: entitiesState };
-    updateMapping.mutate({ tenantId: activeTenantId, data }, {
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: getGetSchemaMappingQueryKey(activeTenantId) });
+    editorRef.current
+      ?.save()
+      .then(() => {
         toast({ title: "Schema mapping updated successfully" });
-      },
-      onError: (err: any) => {
-        toast({ title: "Update failed", description: err.message, variant: "destructive" });
-      }
-    });
+      })
+      .catch((err: unknown) => {
+        toast({
+          title: "Update failed",
+          description: err instanceof Error ? err.message : String(err),
+          variant: "destructive",
+        });
+      });
   };
 
-  if (isLoading || !activeTenantId) {
+  if (!activeTenantId) {
     return (
       <div className="space-y-6">
         <div className="h-8 w-1/4 bg-muted animate-pulse mb-8 rounded" />
@@ -281,112 +263,22 @@ export function Mapping() {
 
       <AirtableConnectionPanel activeTenantId={activeTenantId} />
 
-      {!mapping || entitiesState.length === 0 ? (
-        <Card className="border-dashed bg-muted/30">
-          <CardContent className="flex flex-col items-center justify-center h-48 text-muted-foreground">
-            <LinkIcon className="w-8 h-8 mb-4 opacity-20" />
-            No schema mapping available for this tenant.
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="flex-1 flex flex-col space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold">Field Mappings</h2>
-            <Button onClick={handleSave} disabled={updateMapping.isPending}>
-              <Save className="w-4 h-4 mr-2" /> 
-              {updateMapping.isPending ? 'Saving...' : 'Save Mappings'}
-            </Button>
-          </div>
-
-          <Tabs defaultValue={entitiesState[0].entityKind} className="flex-1 flex flex-col">
-            <TabsList className="w-fit">
-              {entitiesState.map(e => (
-                <TabsTrigger key={e.entityKind} value={e.entityKind} className="capitalize px-6">
-                  {e.label}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-            
-            {entitiesState.map((entity, eIdx) => (
-              <TabsContent key={entity.entityKind} value={entity.entityKind} className="flex-1 mt-6">
-                <div className="grid lg:grid-cols-3 gap-6 items-start">
-                  <Card className="lg:col-span-2 overflow-hidden shadow-sm">
-                    <Table>
-                      <TableHeader className="bg-muted/50">
-                        <TableRow>
-                          <TableHead className="w-[240px]">Canonical System Field</TableHead>
-                          <TableHead className="w-[100px]">Status</TableHead>
-                          <TableHead>Airtable Source Column</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {entity.fields.map((field, fIdx) => (
-                          <TableRow key={field.canonical} className="group hover:bg-muted/30">
-                            <TableCell>
-                              <div className="font-medium text-sm text-foreground">{field.label}</div>
-                              <div className="text-[11px] text-muted-foreground font-mono mt-0.5">{field.canonical}</div>
-                            </TableCell>
-                            <TableCell>
-                              {field.required ? (
-                                <Badge variant="secondary" className="text-[10px] bg-secondary/50 text-secondary-foreground/70 border-0">Required</Badge>
-                              ) : (
-                                <span className="text-[10px] text-muted-foreground/50 uppercase tracking-wider pl-2">Optional</span>
-                              )}
-                            </TableCell>
-                            <TableCell>
-                              <div className="relative">
-                                <Input 
-                                  value={field.airtableFieldName || ""} 
-                                  onChange={(e) => handleFieldChange(eIdx, fIdx, e.target.value)}
-                                  placeholder="Exact column name..."
-                                  className={`font-mono text-sm bg-transparent transition-colors
-                                    ${field.required && !field.mapped ? 'border-destructive focus-visible:ring-destructive/20 bg-destructive/5' : ''}
-                                    ${field.mapped ? 'border-primary/20' : ''}
-                                  `}
-                                />
-                                {field.required && !field.mapped && (
-                                  <AlertCircle className="w-4 h-4 text-destructive absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                                )}
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </Card>
-
-                  <Card className="shadow-sm bg-muted/20 border-border/50">
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-sm font-medium flex items-center gap-2">
-                        <AlertCircle className="w-4 h-4 text-muted-foreground" />
-                        Unmapped Airtable Columns
-                      </CardTitle>
-                      <CardDescription className="text-xs">
-                        Columns detected in Airtable that do not correspond to any canonical fields.
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      {entity.unrecognizedFields && entity.unrecognizedFields.length > 0 ? (
-                        <div className="flex flex-wrap gap-2">
-                          {entity.unrecognizedFields.map(f => (
-                            <Badge key={f} variant="outline" className="font-mono text-[10px] bg-background text-muted-foreground border-border/50">
-                              {f}
-                            </Badge>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="text-xs text-muted-foreground/70 text-center py-6 border border-dashed border-border/50 rounded-md bg-background/50">
-                          No unmapped columns detected.
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                </div>
-              </TabsContent>
-            ))}
-          </Tabs>
+      <div className="flex-1 flex flex-col space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold">Field Mappings</h2>
+          <Button onClick={handleSave} disabled={saving}>
+            <Save className="w-4 h-4 mr-2" />
+            {saving ? "Saving..." : "Save Mappings"}
+          </Button>
         </div>
-      )}
+
+        <FieldMappingEditor
+          ref={editorRef}
+          tenantId={activeTenantId}
+          baseId={tenant?.airtableBaseId ?? null}
+          onSavingChange={setSaving}
+        />
+      </div>
     </div>
   );
 }

@@ -238,6 +238,11 @@ export interface RuleInstanceUpdate {
   enabled?: boolean;
 }
 
+export interface CreateTenant {
+  /** @minLength 1 */
+  name: string;
+}
+
 export type RuleInstanceCreateParams = { [key: string]: unknown };
 
 export interface RuleInstanceCreate {

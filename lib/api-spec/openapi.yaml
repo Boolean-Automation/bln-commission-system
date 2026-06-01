@@ -53,6 +53,25 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/Tenant"
+    post:
+      operationId: createTenant
+      tags: [tenants]
+      summary: Create a new company (tenant)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTenant"
+      responses:
+        "200":
+          description: Created tenant
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Tenant"
+        "400":
+          $ref: "#/components/responses/BadRequest"
 
   /tenants/{tenantId}:
     get:
@@ -830,6 +849,14 @@ components:
           additionalProperties: true
         enabled:
           type: boolean
+
+    CreateTenant:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
 
     RuleInstanceCreate:
       type: object

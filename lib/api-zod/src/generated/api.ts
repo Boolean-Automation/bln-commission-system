@@ -36,6 +36,30 @@ export const ListTenantsResponse = zod.array(ListTenantsResponseItem)
 
 
 /**
+ * @summary Create a new company (tenant)
+ */
+
+
+
+export const CreateTenantBody = zod.object({
+  "name": zod.string().min(1)
+})
+
+export const CreateTenantResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "status": zod.enum(['active', 'paused']),
+  "airtableBaseId": zod.string().nullish(),
+  "airtableConnected": zod.boolean(),
+  "peopleCount": zod.number(),
+  "jobsCount": zod.number(),
+  "entryCount": zod.number(),
+  "createdAt": zod.string()
+})
+
+
+/**
  * @summary Get a tenant by id
  */
 export const GetTenantParams = zod.object({

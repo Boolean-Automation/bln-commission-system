@@ -29,6 +29,7 @@ import type {
   CommissionEvent,
   CommissionPlan,
   CommissionTransition,
+  CreateTenant,
   DashboardSummary,
   GetActivityParams,
   HealthStatus,
@@ -216,6 +217,77 @@ export function useListTenants<TData = Awaited<ReturnType<typeof listTenants>>, 
 
 
 
+
+export const getCreateTenantUrl = () => {
+
+
+
+
+  return `/api/tenants`
+}
+
+/**
+ * @summary Create a new company (tenant)
+ */
+export const createTenant = async (createTenant: CreateTenant, options?: RequestInit): Promise<Tenant> => {
+
+  return customFetch<Tenant>(getCreateTenantUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      createTenant,)
+  }
+);}
+
+
+
+
+export const getCreateTenantMutationOptions = <TError = ErrorType<BadRequestResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createTenant>>, TError,{data: BodyType<CreateTenant>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createTenant>>, TError,{data: BodyType<CreateTenant>}, TContext> => {
+
+const mutationKey = ['createTenant'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createTenant>>, {data: BodyType<CreateTenant>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createTenant(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateTenantMutationResult = NonNullable<Awaited<ReturnType<typeof createTenant>>>
+    export type CreateTenantMutationBody = BodyType<CreateTenant>
+    export type CreateTenantMutationError = ErrorType<BadRequestResponse>
+
+    /**
+ * @summary Create a new company (tenant)
+ */
+export const useCreateTenant = <TError = ErrorType<BadRequestResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createTenant>>, TError,{data: BodyType<CreateTenant>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createTenant>>,
+        TError,
+        {data: BodyType<CreateTenant>},
+        TContext
+      > => {
+      return useMutation(getCreateTenantMutationOptions(options));
+    }
 
 export const getGetTenantUrl = (tenantId: string,) => {
 
