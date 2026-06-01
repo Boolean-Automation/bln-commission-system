@@ -25,14 +25,16 @@ export function TenantSwitcher() {
             size="lg"
             className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground border border-sidebar-border bg-sidebar-accent/30"
           >
-            <div className="flex aspect-square size-8 items-center justify-center rounded-sm bg-sidebar-primary text-sidebar-primary-foreground">
+            <div className="flex aspect-square size-8 shrink-0 items-center justify-center rounded-sm bg-sidebar-primary text-sidebar-primary-foreground">
               <Building className="size-4" />
             </div>
-            <div className="flex flex-col gap-0.5 leading-none">
-              <span className="font-semibold text-sm">{activeTenant.name}</span>
-              <span className="text-xs text-sidebar-foreground/60">{activeTenant.slug}</span>
+            <div className="flex min-w-0 flex-1 flex-col gap-0.5 leading-none">
+              <span className="truncate font-semibold text-sm" title={activeTenant.name}>
+                {activeTenant.name}
+              </span>
+              <span className="truncate text-xs text-sidebar-foreground/60">{activeTenant.slug}</span>
             </div>
-            <ChevronsUpDown className="ml-auto size-4 text-sidebar-foreground/50" />
+            <ChevronsUpDown className="ml-auto size-4 shrink-0 text-sidebar-foreground/50" />
           </SidebarMenuButton>
         </DropdownMenuTrigger>
         <DropdownMenuContent
@@ -47,15 +49,17 @@ export function TenantSwitcher() {
               onClick={() => setActiveTenantId(tenant.id)}
               className="flex items-center gap-2 p-2 cursor-pointer"
             >
-              <div className="flex aspect-square size-6 items-center justify-center rounded-sm bg-muted text-muted-foreground">
+              <div className="flex aspect-square size-6 shrink-0 items-center justify-center rounded-sm bg-muted text-muted-foreground">
                 <Building className="size-3" />
               </div>
-              <div className="flex flex-col gap-0.5">
-                <span className="font-medium">{tenant.name}</span>
-                <span className="text-xs text-muted-foreground">{tenant.slug}</span>
+              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                <span className="truncate font-medium" title={tenant.name}>
+                  {tenant.name}
+                </span>
+                <span className="truncate text-xs text-muted-foreground">{tenant.slug}</span>
               </div>
               {tenant.id === activeTenant.id && (
-                <Check className="ml-auto size-4 text-primary" />
+                <Check className="ml-auto size-4 shrink-0 text-primary" />
               )}
             </DropdownMenuItem>
           ))}
