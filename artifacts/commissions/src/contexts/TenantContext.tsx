@@ -16,9 +16,12 @@ export function TenantProvider({ children }: { children: ReactNode }) {
   const { data: tenants = [], isLoading } = useListTenants();
   const [activeTenantId, setActiveTenantId] = useState<string | null>(null);
 
-  // Auto-select first tenant if none is selected
+  // Select the first tenant when none is selected, or when the currently
+  // selected tenant no longer exists (e.g. after a re-seed created a new id).
   useEffect(() => {
-    if (!activeTenantId && tenants.length > 0) {
+    if (tenants.length === 0) return;
+    const selectedExists = activeTenantId && tenants.some((t) => t.id === activeTenantId);
+    if (!selectedExists) {
       setActiveTenantId(tenants[0].id);
     }
   }, [tenants, activeTenantId]);
