@@ -33,13 +33,13 @@ export function Jobs() {
             <TableHeader className="bg-muted/50 sticky top-0 z-10 shadow-sm">
               <TableRow>
                 <TableHead>Job Name</TableHead>
-                <TableHead>Customer</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Sales Rep</TableHead>
-                <TableHead>Manager</TableHead>
-                <TableHead>Completed Date</TableHead>
-                <TableHead className="text-right">Total Amount</TableHead>
-                <TableHead className="text-right">GP Amount</TableHead>
+                <TableHead>Job Contact Name</TableHead>
+                <TableHead>Job Status</TableHead>
+                <TableHead>Sales</TableHead>
+                <TableHead>Coordinator</TableHead>
+                <TableHead>Job End Date</TableHead>
+                <TableHead className="text-right">Total Job Amount</TableHead>
+                <TableHead className="text-right">Gross Profit $</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
