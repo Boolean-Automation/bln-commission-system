@@ -15,6 +15,14 @@ import {
   SidebarGroupContent,
   SidebarGroupLabel,
 } from "@/components/ui/sidebar";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  useGetTenant,
+  getGetTenantQueryKey,
+  useSyncFromAirtable,
+} from "@workspace/api-client-react";
 import { TenantSwitcher } from "./TenantSwitcher";
 import { 
   LayoutDashboard, 
@@ -24,8 +32,53 @@ import {
   Users, 
   Briefcase, 
   Settings2,
-  CheckCircle2
+  CheckCircle2,
+  RefreshCw,
+  Loader2
 } from "lucide-react";
+
+function SidebarSync({ tenantId }: { tenantId: string }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const { data: tenant } = useGetTenant(tenantId, {
+    query: { enabled: !!tenantId, queryKey: getGetTenantQueryKey(tenantId) },
+  });
+  const syncMutation = useSyncFromAirtable();
+
+  const handleSync = () => {
+    syncMutation.mutate(
+      { tenantId },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getGetTenantQueryKey(tenantId) });
+          toast({ title: "Sync completed successfully" });
+        },
+        onError: (err: any) => {
+          toast({ title: "Sync failed", description: err?.message, variant: "destructive" });
+        },
+      },
+    );
+  };
+
+  const connected = tenant?.airtableConnected;
+
+  return (
+    <Button
+      onClick={handleSync}
+      disabled={syncMutation.isPending || !connected}
+      size="sm"
+      className="w-full justify-center gap-2"
+      title={connected ? "Sync data from Airtable" : "Connect an Airtable base first"}
+    >
+      {syncMutation.isPending ? (
+        <Loader2 className="h-4 w-4 animate-spin" />
+      ) : (
+        <RefreshCw className="h-4 w-4" />
+      )}
+      {syncMutation.isPending ? "Syncing..." : "Sync Now"}
+    </Button>
+  );
+}
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -33,7 +86,7 @@ interface AppLayoutProps {
 
 export function AppLayout({ children }: AppLayoutProps) {
   const [location] = useLocation();
-  const { activeTenant, isLoading } = useTenant();
+  const { activeTenant, activeTenantId, isLoading } = useTenant();
 
   const navigation = [
     { name: "Dashboard", href: "/", icon: LayoutDashboard },
@@ -144,8 +197,11 @@ export function AppLayout({ children }: AppLayoutProps) {
             </SidebarGroup>
           </SidebarContent>
 
-          <SidebarFooter className="p-4 border-t border-sidebar-border/50 text-xs text-sidebar-foreground/40 font-mono">
-            OPERATOR CONSOLE v1.0
+          <SidebarFooter className="p-4 border-t border-sidebar-border/50 space-y-3">
+            {activeTenantId && <SidebarSync tenantId={activeTenantId} />}
+            <div className="text-xs text-sidebar-foreground/40 font-mono">
+              OPERATOR CONSOLE v1.0
+            </div>
           </SidebarFooter>
           <SidebarRail />
         </Sidebar>
