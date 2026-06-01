@@ -145,12 +145,51 @@ export async function recomputeTenant(
           },
         });
       } else if (inst.ruleModuleKey === "sm_cut") {
+        // Blanket sales-manager override: every person who qualifies as a sales
+        // manager earns the override on each job. Managers are matched by
+        // position substring and/or role; a legacy single `managerName` is
+        // still honored when no matcher is configured.
+        const positionRaw =
+          typeof inst.params["positionContains"] === "string"
+            ? (inst.params["positionContains"] as string).trim().toLowerCase()
+            : "";
+        // Treat an empty/whitespace matcher as absent so it never matches every
+        // person via `"".includes("")`.
+        const positionContains = positionRaw.length > 0 ? positionRaw : null;
+        const rolesInclude = (
+          Array.isArray(inst.params["rolesInclude"])
+            ? (inst.params["rolesInclude"] as string[])
+            : []
+        )
+          .map((r) => r.trim().toLowerCase())
+          .filter((r) => r.length > 0);
         const managerName =
           typeof inst.params["managerName"] === "string"
             ? (inst.params["managerName"] as string)
             : null;
-        const mgr = findPersonByName(people, managerName);
-        if (!mgr) continue;
+
+        let managers: Person[];
+        if (positionContains || rolesInclude.length > 0) {
+          managers = people.filter((p) => {
+            const byPosition =
+              positionContains !== null &&
+              (p.position ?? "")
+                .trim()
+                .toLowerCase()
+                .includes(positionContains);
+            const byRole =
+              rolesInclude.length > 0 &&
+              (p.roles ?? []).some((r) =>
+                rolesInclude.includes(r.trim().toLowerCase()),
+              );
+            return byPosition || byRole;
+          });
+        } else {
+          const m = findPersonByName(people, managerName);
+          managers = m ? [m] : [];
+        }
+        if (managers.length === 0) continue;
+
         const excludeSoldBy = (
           Array.isArray(inst.params["excludeSoldBy"])
             ? (inst.params["excludeSoldBy"] as string[])
@@ -164,27 +203,29 @@ export async function recomputeTenant(
         const rate = num(inst.params["rate"], 0.0075);
         const gated = isGated(job, "SM");
         const amount = gated ? 0 : round2(total * rate);
-        desired.push({
-          dedupeKey: `${inst.id}:${job.id}:${mgr.id}:SM`,
-          personId: mgr.id,
-          personName: mgr.name,
-          type: "SM",
-          sourceKind: "job",
-          sourceId: job.id,
-          sourceLabel: label,
-          amount,
-          positionAtCosted: mgr.position ?? null,
-          ruleInstanceIds: [inst.id],
-          computationSnapshot: {
-            rule: "sm_cut",
-            jobTotal: total,
-            rate,
-            soldBy: job.salesRep,
-            gpPct: job.gpPct,
-            gated,
-            formula: `${(rate * 100).toFixed(2)}% x ${total}`,
-          },
-        });
+        for (const mgr of managers) {
+          desired.push({
+            dedupeKey: `${inst.id}:${job.id}:${mgr.id}:SM`,
+            personId: mgr.id,
+            personName: mgr.name,
+            type: "SM",
+            sourceKind: "job",
+            sourceId: job.id,
+            sourceLabel: label,
+            amount,
+            positionAtCosted: mgr.position ?? null,
+            ruleInstanceIds: [inst.id],
+            computationSnapshot: {
+              rule: "sm_cut",
+              jobTotal: total,
+              rate,
+              soldBy: job.salesRep,
+              gpPct: job.gpPct,
+              gated,
+              formula: `${(rate * 100).toFixed(2)}% x ${total}`,
+            },
+          });
+        }
       } else if (inst.ruleModuleKey === "pm_gp_rate") {
         const mgr = findPersonByName(people, job.manager);
         if (!mgr) continue;

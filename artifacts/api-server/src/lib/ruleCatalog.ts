@@ -47,14 +47,16 @@ export const RULE_MODULES: RuleModuleDef[] = [
   },
   {
     key: "sm_cut",
-    name: "Sales Manager Cut",
+    name: "Sales Manager Override",
     category: "Sales",
     description:
-      "Pays a sales manager an override percentage of every qualifying job total, optionally excluding jobs sold by named individuals (e.g. an owner-sold job).",
-    summary: "Override % of job total for a sales manager",
+      "Pays every sales manager an override percentage of each qualifying job total. Managers are matched by position substring and/or role, optionally excluding jobs sold by named individuals (e.g. an owner-sold job). A legacy single managerName is still honored when no matcher is set.",
+    summary: "Override % of job total for every sales manager",
     paramsSchema: {
-      managerName: { type: "string" },
       rate: { type: "number", default: 0.0075 },
+      positionContains: { type: "string", default: "sales manager" },
+      rolesInclude: { type: "array", items: { type: "string" }, default: [] },
+      managerName: { type: "string" },
       excludeSoldBy: { type: "array", items: { type: "string" }, default: [] },
     },
   },

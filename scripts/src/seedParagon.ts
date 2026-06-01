@@ -197,12 +197,13 @@ async function main() {
     {
       planId,
       ruleModuleKey: "sm_cut",
-      ruleModuleName: "Sales Manager Override (Brad)",
-      description: "Brad earns 0.75% of every job total, excluding Seth-sold jobs.",
+      ruleModuleName: "Sales Manager Override",
+      description: "Every sales manager earns 0.75% of every job total.",
       params: {
-        managerName: "Brad Carter",
         rate: 0.0075,
-        excludeSoldBy: ["Seth Owens"],
+        positionContains: "sales manager",
+        rolesInclude: ["SM"],
+        excludeSoldBy: [],
       },
       appliesTo: {},
       enabled: true,
