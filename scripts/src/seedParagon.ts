@@ -124,7 +124,7 @@ async function main() {
         { canonical: "jobName", label: "Job Name", required: false, mapped: true, airtableFieldId: null, airtableFieldName: "Job Name" },
         { canonical: "customer", label: "Job Contact Name", required: false, mapped: true, airtableFieldId: null, airtableFieldName: "Job Contact Name" },
         { canonical: "salesRep", label: "Sales", required: true, mapped: true, airtableFieldId: null, airtableFieldName: "Sales" },
-        { canonical: "manager", label: "Coordinator", required: false, mapped: true, airtableFieldId: null, airtableFieldName: "Coordinator" },
+        { canonical: "manager", label: "Manager", required: false, mapped: true, airtableFieldId: null, airtableFieldName: "Coordinator" },
         { canonical: "totalAmount", label: "Total Job Amount", required: true, mapped: true, airtableFieldId: null, airtableFieldName: "Total Job Amount" },
         { canonical: "gpAmount", label: "Gross Profit $", required: true, mapped: true, airtableFieldId: null, airtableFieldName: "Gross Profit $" },
         { canonical: "gpPct", label: "Gross Profit %", required: true, mapped: true, airtableFieldId: null, airtableFieldName: "Gross Profit %" },
