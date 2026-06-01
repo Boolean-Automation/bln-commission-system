@@ -84,6 +84,47 @@ export const GetTenantResponse = zod.object({
 
 
 /**
+ * @summary Rename a company (tenant)
+ */
+export const UpdateTenantParams = zod.object({
+  "tenantId": zod.coerce.string()
+})
+
+
+
+
+export const UpdateTenantBody = zod.object({
+  "name": zod.string().min(1)
+})
+
+export const UpdateTenantResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "status": zod.enum(['active', 'paused']),
+  "airtableBaseId": zod.string().nullish(),
+  "airtableConnected": zod.boolean(),
+  "peopleCount": zod.number(),
+  "jobsCount": zod.number(),
+  "entryCount": zod.number(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Delete a company and all of its dependent data
+ */
+export const DeleteTenantParams = zod.object({
+  "tenantId": zod.coerce.string()
+})
+
+export const DeleteTenantResponse = zod.object({
+  "id": zod.string(),
+  "deleted": zod.boolean()
+})
+
+
+/**
  * @summary Dashboard summary for a tenant
  */
 export const GetDashboardParams = zod.object({

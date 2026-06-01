@@ -245,6 +245,16 @@ export interface CreateTenant {
   name: string;
 }
 
+export interface UpdateTenant {
+  /** @minLength 1 */
+  name: string;
+}
+
+export interface DeleteTenantResult {
+  id: string;
+  deleted: boolean;
+}
+
 export type RuleInstanceCreateParams = { [key: string]: unknown };
 
 export interface RuleInstanceCreate {
@@ -455,6 +465,11 @@ export type NotFoundResponse = Error;
  * Invalid request
  */
 export type BadRequestResponse = Error;
+
+/**
+ * Operation not permitted
+ */
+export type ForbiddenResponse = Error;
 
 export type GetActivityParams = {
 limit?: number;

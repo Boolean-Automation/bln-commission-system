@@ -31,6 +31,8 @@ import type {
   CommissionTransition,
   CreateTenant,
   DashboardSummary,
+  DeleteTenantResult,
+  ForbiddenResponse,
   GetActivityParams,
   HealthStatus,
   Job,
@@ -48,7 +50,8 @@ import type {
   SchemaMappingInput,
   SetAirtableBaseInput,
   SyncResult,
-  Tenant
+  Tenant,
+  UpdateTenant
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -365,6 +368,148 @@ export function useGetTenant<TData = Awaited<ReturnType<typeof getTenant>>, TErr
 
 
 
+
+export const getUpdateTenantUrl = (tenantId: string,) => {
+
+
+
+
+  return `/api/tenants/${tenantId}`
+}
+
+/**
+ * @summary Rename a company (tenant)
+ */
+export const updateTenant = async (tenantId: string,
+    updateTenant: UpdateTenant, options?: RequestInit): Promise<Tenant> => {
+
+  return customFetch<Tenant>(getUpdateTenantUrl(tenantId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      updateTenant,)
+  }
+);}
+
+
+
+
+export const getUpdateTenantMutationOptions = <TError = ErrorType<BadRequestResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateTenant>>, TError,{tenantId: string;data: BodyType<UpdateTenant>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateTenant>>, TError,{tenantId: string;data: BodyType<UpdateTenant>}, TContext> => {
+
+const mutationKey = ['updateTenant'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateTenant>>, {tenantId: string;data: BodyType<UpdateTenant>}> = (props) => {
+          const {tenantId,data} = props ?? {};
+
+          return  updateTenant(tenantId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateTenantMutationResult = NonNullable<Awaited<ReturnType<typeof updateTenant>>>
+    export type UpdateTenantMutationBody = BodyType<UpdateTenant>
+    export type UpdateTenantMutationError = ErrorType<BadRequestResponse | NotFoundResponse>
+
+    /**
+ * @summary Rename a company (tenant)
+ */
+export const useUpdateTenant = <TError = ErrorType<BadRequestResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateTenant>>, TError,{tenantId: string;data: BodyType<UpdateTenant>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateTenant>>,
+        TError,
+        {tenantId: string;data: BodyType<UpdateTenant>},
+        TContext
+      > => {
+      return useMutation(getUpdateTenantMutationOptions(options));
+    }
+
+export const getDeleteTenantUrl = (tenantId: string,) => {
+
+
+
+
+  return `/api/tenants/${tenantId}`
+}
+
+/**
+ * @summary Delete a company and all of its dependent data
+ */
+export const deleteTenant = async (tenantId: string, options?: RequestInit): Promise<DeleteTenantResult> => {
+
+  return customFetch<DeleteTenantResult>(getDeleteTenantUrl(tenantId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteTenantMutationOptions = <TError = ErrorType<ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteTenant>>, TError,{tenantId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteTenant>>, TError,{tenantId: string}, TContext> => {
+
+const mutationKey = ['deleteTenant'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteTenant>>, {tenantId: string}> = (props) => {
+          const {tenantId} = props ?? {};
+
+          return  deleteTenant(tenantId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteTenantMutationResult = NonNullable<Awaited<ReturnType<typeof deleteTenant>>>
+
+    export type DeleteTenantMutationError = ErrorType<ForbiddenResponse | NotFoundResponse>
+
+    /**
+ * @summary Delete a company and all of its dependent data
+ */
+export const useDeleteTenant = <TError = ErrorType<ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteTenant>>, TError,{tenantId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteTenant>>,
+        TError,
+        {tenantId: string},
+        TContext
+      > => {
+      return useMutation(getDeleteTenantMutationOptions(options));
+    }
 
 export const getGetDashboardUrl = (tenantId: string,) => {
 

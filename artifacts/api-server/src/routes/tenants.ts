@@ -1,18 +1,36 @@
 import { Router, type IRouter } from "express";
-import { eq } from "drizzle-orm";
-import { db, tenantsTable, schemaMappingsTable } from "@workspace/db";
+import { eq, inArray } from "drizzle-orm";
+import {
+  db,
+  tenantsTable,
+  schemaMappingsTable,
+  peopleTable,
+  jobsTable,
+  commissionPlansTable,
+  ruleInstancesTable,
+  commissionEntriesTable,
+  commissionEventsTable,
+} from "@workspace/db";
 import {
   ListTenantsResponse,
   CreateTenantBody,
   CreateTenantResponse,
   GetTenantParams,
   GetTenantResponse,
+  UpdateTenantParams,
+  UpdateTenantBody,
+  UpdateTenantResponse,
+  DeleteTenantParams,
+  DeleteTenantResponse,
 } from "@workspace/api-zod";
 import { serializeTenant, isMappingComplete } from "../lib/serialize";
 import { tenantCounts } from "../lib/tenantCounts";
 import { defaultEntityMappings } from "../lib/defaultSchemaMapping";
 
 const router: IRouter = Router();
+
+// Tenants whose slug is protected from deletion (e.g. the live launch tenant).
+const PROTECTED_TENANT_SLUGS = new Set(["paragon-atlanta"]);
 
 function slugify(name: string): string {
   return name
@@ -124,6 +142,107 @@ router.get("/tenants/:tenantId", async (req, res): Promise<void> => {
       ),
     ),
   );
+});
+
+router.patch("/tenants/:tenantId", async (req, res): Promise<void> => {
+  const params = UpdateTenantParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const body = UpdateTenantBody.safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ error: body.error.message });
+    return;
+  }
+  const name = body.data.name.trim();
+  if (!name) {
+    res.status(400).json({ error: "Company name is required" });
+    return;
+  }
+
+  // Rename only updates the display name; the slug stays stable so existing
+  // references (lookups, links, the seed's idempotency key) keep working.
+  const [updated] = await db
+    .update(tenantsTable)
+    .set({ name })
+    .where(eq(tenantsTable.id, params.data.tenantId))
+    .returning();
+
+  if (!updated) {
+    res.status(404).json({ error: "Tenant not found" });
+    return;
+  }
+
+  const [mapping] = await db
+    .select()
+    .from(schemaMappingsTable)
+    .where(eq(schemaMappingsTable.tenantId, updated.id));
+  res.json(
+    UpdateTenantResponse.parse(
+      serializeTenant(
+        updated,
+        await tenantCounts(updated.id),
+        isMappingComplete(mapping?.entities),
+      ),
+    ),
+  );
+});
+
+router.delete("/tenants/:tenantId", async (req, res): Promise<void> => {
+  const params = DeleteTenantParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const tenantId = params.data.tenantId;
+
+  const [tenant] = await db
+    .select()
+    .from(tenantsTable)
+    .where(eq(tenantsTable.id, tenantId));
+  if (!tenant) {
+    res.status(404).json({ error: "Tenant not found" });
+    return;
+  }
+  if (PROTECTED_TENANT_SLUGS.has(tenant.slug)) {
+    res.status(403).json({
+      error: "This company is protected and cannot be deleted.",
+    });
+    return;
+  }
+
+  // No DB-level FK cascades exist, so remove all dependent rows explicitly in a
+  // single transaction. rule_instances link to the tenant via its plans.
+  await db.transaction(async (tx) => {
+    const plans = await tx
+      .select({ id: commissionPlansTable.id })
+      .from(commissionPlansTable)
+      .where(eq(commissionPlansTable.tenantId, tenantId));
+    const planIds = plans.map((p) => p.id);
+    if (planIds.length > 0) {
+      await tx
+        .delete(ruleInstancesTable)
+        .where(inArray(ruleInstancesTable.planId, planIds));
+    }
+    await tx
+      .delete(commissionEventsTable)
+      .where(eq(commissionEventsTable.tenantId, tenantId));
+    await tx
+      .delete(commissionEntriesTable)
+      .where(eq(commissionEntriesTable.tenantId, tenantId));
+    await tx
+      .delete(commissionPlansTable)
+      .where(eq(commissionPlansTable.tenantId, tenantId));
+    await tx.delete(jobsTable).where(eq(jobsTable.tenantId, tenantId));
+    await tx.delete(peopleTable).where(eq(peopleTable.tenantId, tenantId));
+    await tx
+      .delete(schemaMappingsTable)
+      .where(eq(schemaMappingsTable.tenantId, tenantId));
+    await tx.delete(tenantsTable).where(eq(tenantsTable.id, tenantId));
+  });
+
+  res.json(DeleteTenantResponse.parse({ id: tenantId, deleted: true }));
 });
 
 export default router;

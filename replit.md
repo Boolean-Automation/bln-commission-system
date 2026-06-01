@@ -44,6 +44,8 @@ To recompute commissions for a tenant: `POST /api/tenants/:tenantId/recompute`.
 - API timestamp fields are serialized to ISO strings before Zod response parsing (response schemas type timestamps as `string`).
 - Recompute reconciles removals: rule-derived entries no longer produced (rule disabled, job cancelled) are voided (or clawed back if already paid); if they become desired again they are reactivated to accrued. A unique index on `(tenant_id, dedupe_key)` enforces idempotency at the DB level.
 - **Auth is deferred** (per project scope). The API is currently unauthenticated and the by-ID routes (`/commissions/:id`, `/rule-instances/:id`) are not tenant-scoped — there is no auth/tenant context to scope them against yet. Tenant scoping on these routes must be added together with authentication.
+- Renaming a tenant (`PATCH /tenants/:id`) updates only the display `name`; the `slug` stays stable so existing lookups and the seed's idempotency key keep working.
+- Deleting a tenant (`DELETE /tenants/:id`) removes all dependent rows (schema mapping, people, jobs, plans, rule instances, commission entries + events) in one transaction — there are no DB-level FK cascades, so the order is explicit. The `paragon-atlanta` slug is server-side protected (403); the UI additionally requires confirm-by-typing the company name.
 
 ## Product
 

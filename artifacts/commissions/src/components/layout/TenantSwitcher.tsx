@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useTenant } from "@/contexts/TenantContext";
-import { Check, ChevronsUpDown, Building, Plus, AlertCircle } from "lucide-react";
+import { Check, ChevronsUpDown, Building, Plus, AlertCircle, Settings } from "lucide-react";
 import type { Tenant } from "@workspace/api-client-react";
 import {
   DropdownMenu,
@@ -13,12 +13,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { SidebarMenuButton } from "@/components/ui/sidebar";
 import { OnboardingWizard } from "@/components/onboarding/OnboardingWizard";
+import { ManageCompanyDialog } from "@/components/layout/ManageCompanyDialog";
 import { isSetupIncomplete } from "@/lib/setupStatus";
 
 export function TenantSwitcher() {
   const { activeTenant, tenants, setActiveTenantId } = useTenant();
   const [wizardOpen, setWizardOpen] = useState(false);
   const [resumeTenant, setResumeTenant] = useState<Tenant | null>(null);
+  const [manageTenant, setManageTenant] = useState<Tenant | null>(null);
 
   if (!activeTenant) return null;
 
@@ -76,7 +78,7 @@ export function TenantSwitcher() {
               <DropdownMenuItem
                 key={tenant.id}
                 onClick={() => setActiveTenantId(tenant.id)}
-                className="flex items-center gap-2 p-2 cursor-pointer"
+                className="flex items-center gap-2 p-2 cursor-pointer group/tenant"
               >
                 <div className="flex aspect-square size-6 shrink-0 items-center justify-center rounded-sm bg-muted text-muted-foreground">
                   <Building className="size-3" />
@@ -100,6 +102,18 @@ export function TenantSwitcher() {
                   {tenant.id === activeTenant.id && (
                     <Check className="size-4 text-primary" />
                   )}
+                  <button
+                    type="button"
+                    aria-label={`Manage ${tenant.name}`}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setManageTenant(tenant);
+                    }}
+                    className="shrink-0 rounded-sm p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-accent hover:text-foreground focus:opacity-100 group-hover/tenant:opacity-100"
+                  >
+                    <Settings className="size-3.5" />
+                  </button>
                 </div>
               </DropdownMenuItem>
             );
@@ -134,6 +148,22 @@ export function TenantSwitcher() {
         onOpenChange={setWizardOpen}
         resumeTenant={resumeTenant}
         onCreated={(tenantId) => setActiveTenantId(tenantId)}
+      />
+
+      <ManageCompanyDialog
+        tenant={manageTenant}
+        open={manageTenant !== null}
+        onOpenChange={(open) => {
+          if (!open) setManageTenant(null);
+        }}
+        onDeleted={(deletedId) => {
+          // If the active tenant was deleted, fall back to another one so the
+          // dashboard doesn't point at a non-existent company.
+          if (deletedId === activeTenant.id) {
+            const next = tenants.find((t) => t.id !== deletedId);
+            if (next) setActiveTenantId(next.id);
+          }
+        }}
       />
     </>
   );
