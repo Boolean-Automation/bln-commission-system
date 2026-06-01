@@ -132,6 +132,7 @@ async function main() {
         { canonical: "gpPct", label: "Gross Profit %", required: true, mapped: true, airtableFieldId: null, airtableFieldName: "Gross Profit %" },
         { canonical: "leadSource", label: "Source", required: false, mapped: true, airtableFieldId: null, airtableFieldName: "Source" },
         { canonical: "status", label: "Job Status", required: false, mapped: true, airtableFieldId: null, airtableFieldName: "Job Status" },
+        { canonical: "projectStatuses", label: "Project Status(es)", required: false, mapped: true, airtableFieldId: null, airtableFieldName: "Project Status(es) Rollup" },
         { canonical: "signedDate", label: "Won Date", required: false, mapped: true, airtableFieldId: null, airtableFieldName: "Won Date" },
         { canonical: "completedDate", label: "Job End Date", required: false, mapped: true, airtableFieldId: null, airtableFieldName: "Job End Date" },
       ],

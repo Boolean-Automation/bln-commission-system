@@ -41,6 +41,39 @@ function parseBool(v: unknown, fallback = true): boolean {
   return !/(inactive|terminated|former|exit|disabled|no|false|0)/i.test(s);
 }
 
+// Project statuses (from the Jobs "Project Status(es) Rollup") that count as a
+// project still being live, vs. one that reached a completion milestone.
+const ACTIVE_PROJECT_STATUSES = new Set([
+  "new",
+  "on hold",
+  "scheduled",
+  "ready",
+  "in progress",
+]);
+const COMPLETED_PROJECT_STATUSES = new Set([
+  "work complete",
+  "completed",
+  "job costed",
+  "closed",
+]);
+
+/**
+ * A job is cancelled when ALL of its projects are inactive AND none of them are
+ * completed, job costed, or closed. The Job Status field itself only carries
+ * New/Open/Closed, so cancellation must be derived from the rolled-up project
+ * statuses. When no project statuses are available we fall back to a heuristic
+ * on the job status text.
+ */
+function deriveCancelled(projectStatusesRaw: unknown, jobStatus: string): boolean {
+  const statuses = parseList(projectStatusesRaw).map((s) => s.toLowerCase());
+  if (statuses.length === 0) {
+    return /cancel|lost|dead|dropped/i.test(jobStatus);
+  }
+  const anyActive = statuses.some((s) => ACTIVE_PROJECT_STATUSES.has(s));
+  const anyCompleted = statuses.some((s) => COMPLETED_PROJECT_STATUSES.has(s));
+  return !anyActive && !anyCompleted;
+}
+
 type FieldMap = Map<string, string>;
 
 function buildFieldMap(entity: EntityMapping | undefined): FieldMap {
@@ -115,7 +148,8 @@ export async function syncTenantFromAirtable(
       position: parseStr(get("position")),
       email: parseStr(get("email")),
       company: parseStr(get("company")),
-      ytdSales: parseNumber(get("ytdSales")),
+      // ytdSales is computed by the engine from non-cancelled jobs (see
+      // recomputeTenant), not synced from Airtable.
       startDate: parseStr(get("startDate")),
       active: parseBool(get("active")),
     };
@@ -150,7 +184,7 @@ export async function syncTenantFromAirtable(
       gpAmount: parseNumber(get("gpAmount")),
       gpPct: parseNumber(get("gpPct")),
       status,
-      cancelled: /cancel|lost|dead|dropped/i.test(status),
+      cancelled: deriveCancelled(get("projectStatuses"), status),
       leadSource: parseStr(get("leadSource")),
       signedDate: parseStr(get("signedDate")),
       completedDate: parseStr(get("completedDate")),

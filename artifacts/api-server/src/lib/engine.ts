@@ -83,6 +83,12 @@ export async function recomputeTenant(
     .from(peopleTable)
     .where(eq(peopleTable.tenantId, tenantId));
 
+  // YTD Sales is computed in-system (not synced from Airtable): the sum of each
+  // sales rep's non-cancelled jobs won in the current calendar year. This is the
+  // value the tiered_ytd_rate rule uses to pick a commission tier, and what the
+  // People page displays.
+  await computeYtdSales(jobs, people);
+
   const gatekeeper = enabled.find((i) => i.ruleModuleKey === "gp_gatekeeper");
   const gateFloor = gatekeeper ? num(gatekeeper.params["floorPct"], 40) : null;
   const gatedTypes = new Set<string>(
@@ -440,4 +446,42 @@ export async function recomputeTenant(
 
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
+}
+
+function yearOf(dateStr: string | null): number | null {
+  if (!dateStr) return null;
+  const m = dateStr.match(/\b(20\d{2})\b/);
+  return m ? Number(m[1]) : null;
+}
+
+/**
+ * Recompute each person's YTD Sales from the jobs table and persist it.
+ * YTD Sales = sum of `totalAmount` over non-cancelled jobs the person sold
+ * (matched on `salesRep`) whose won/signed date falls in the current calendar
+ * year. Mutates the in-memory `people` rows so tier selection downstream uses
+ * the fresh value, and only writes rows whose stored value actually changed.
+ */
+async function computeYtdSales(jobs: Job[], people: Person[]): Promise<void> {
+  const currentYear = new Date().getFullYear();
+  const ytdByName = new Map<string, number>();
+  for (const job of jobs) {
+    if (job.cancelled) continue;
+    if (!job.salesRep) continue;
+    const total = job.totalAmount ?? 0;
+    if (!total) continue;
+    const year = yearOf(job.signedDate) ?? yearOf(job.completedDate);
+    if (year !== currentYear) continue;
+    const key = job.salesRep.trim().toLowerCase();
+    ytdByName.set(key, (ytdByName.get(key) ?? 0) + total);
+  }
+  for (const p of people) {
+    const next = round2(ytdByName.get(p.name.trim().toLowerCase()) ?? 0);
+    if ((p.ytdSales ?? 0) !== next) {
+      await db
+        .update(peopleTable)
+        .set({ ytdSales: next })
+        .where(eq(peopleTable.id, p.id));
+      p.ytdSales = next;
+    }
+  }
 }

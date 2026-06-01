@@ -1,5 +1,1 @@
-- [Commission System architecture](commission-system.md) — multi-tenant commission engine: recompute idempotency via dedupeKey, audit events, esbuild restart gotcha.
-- [api-zod codegen pitfalls](api-zod-codegen.md) — TS2308 name collision + timestamps-as-strings rules for the generated Zod barrel.
-- [Re-seed creates a new tenant id](seed-tenant-id.md) — seed mints a fresh tenant UUID each run; frontend must re-select when the held id vanishes, never hardcode tenant ids.
-- [Schema mapping editing](schema-mapping-editing.md) — changing a source table must clear column maps not in the new table, else sync silently upserts 0 + prunes rows.
-- [Engine person resolution & test-data coupling](engine-person-resolution.md) — engine links entries by name; seed demo rules hardcode test people; clear orphaned entries before recompute.
+- [Paragon Airtable semantics](paragon-airtable-semantics.md) — job cancellation derives from project-status rollup (Job Status is only New/Open/Closed); YTD Sales computed in engine, not synced.
