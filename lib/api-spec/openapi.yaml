@@ -268,6 +268,86 @@ paths:
               schema:
                 $ref: "#/components/schemas/RecomputeResult"
 
+  /airtable/bases:
+    get:
+      operationId: listAirtableBases
+      tags: [airtable]
+      summary: List Airtable bases reachable through the connection
+      responses:
+        "200":
+          description: Bases
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AirtableBase"
+        "502":
+          $ref: "#/components/responses/BadRequest"
+
+  /airtable/bases/{baseId}/tables:
+    get:
+      operationId: getAirtableTables
+      tags: [airtable]
+      summary: List the tables and fields of an Airtable base
+      parameters:
+        - name: baseId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Tables
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AirtableTable"
+        "502":
+          $ref: "#/components/responses/BadRequest"
+
+  /tenants/{tenantId}/airtable-base:
+    put:
+      operationId: setAirtableBase
+      tags: [airtable]
+      summary: Point the tenant at an Airtable base
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetAirtableBaseInput"
+      responses:
+        "200":
+          description: Updated tenant
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Tenant"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /tenants/{tenantId}/sync:
+    post:
+      operationId: syncFromAirtable
+      tags: [airtable]
+      summary: Pull people and jobs from Airtable, then recompute
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+      responses:
+        "200":
+          description: Sync result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
   /tenants/{tenantId}/commissions:
     get:
       operationId: listCommissions
@@ -862,5 +942,66 @@ components:
           type: integer
         adjustmentsCreated:
           type: integer
+        ranAt:
+          type: string
+
+    AirtableBase:
+      type: object
+      required: [id, name, permissionLevel]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        permissionLevel:
+          type: string
+
+    AirtableField:
+      type: object
+      required: [id, name, type]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        type:
+          type: string
+
+    AirtableTable:
+      type: object
+      required: [id, name, fields]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        fields:
+          type: array
+          items:
+            $ref: "#/components/schemas/AirtableField"
+
+    SetAirtableBaseInput:
+      type: object
+      required: [baseId]
+      properties:
+        baseId:
+          type: string
+
+    SyncResult:
+      type: object
+      required: [tenantId, peopleUpserted, peopleRemoved, jobsUpserted, jobsRemoved, recompute, ranAt]
+      properties:
+        tenantId:
+          type: string
+        peopleUpserted:
+          type: integer
+        peopleRemoved:
+          type: integer
+        jobsUpserted:
+          type: integer
+        jobsRemoved:
+          type: integer
+        recompute:
+          $ref: "#/components/schemas/RecomputeResult"
         ranAt:
           type: string

@@ -6,6 +6,7 @@ import schemaRouter from "./schema";
 import rulesRouter from "./rules";
 import commissionsRouter from "./commissions";
 import insightsRouter from "./insights";
+import airtableRouter from "./airtable";
 
 const router: IRouter = Router();
 
@@ -16,5 +17,6 @@ router.use(schemaRouter);
 router.use(rulesRouter);
 router.use(commissionsRouter);
 router.use(insightsRouter);
+router.use(airtableRouter);
 
 export default router;

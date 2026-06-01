@@ -1,42 +1,15 @@
 import { Router, type IRouter } from "express";
-import { eq, count } from "drizzle-orm";
-import {
-  db,
-  tenantsTable,
-  peopleTable,
-  jobsTable,
-  commissionEntriesTable,
-} from "@workspace/db";
+import { eq } from "drizzle-orm";
+import { db, tenantsTable } from "@workspace/db";
 import {
   ListTenantsResponse,
   GetTenantParams,
   GetTenantResponse,
 } from "@workspace/api-zod";
 import { serializeTenant } from "../lib/serialize";
+import { tenantCounts } from "../lib/tenantCounts";
 
 const router: IRouter = Router();
-
-async function tenantCounts(tenantId: string) {
-  const [[p], [j], [e]] = await Promise.all([
-    db
-      .select({ c: count() })
-      .from(peopleTable)
-      .where(eq(peopleTable.tenantId, tenantId)),
-    db
-      .select({ c: count() })
-      .from(jobsTable)
-      .where(eq(jobsTable.tenantId, tenantId)),
-    db
-      .select({ c: count() })
-      .from(commissionEntriesTable)
-      .where(eq(commissionEntriesTable.tenantId, tenantId)),
-  ]);
-  return {
-    peopleCount: p?.c ?? 0,
-    jobsCount: j?.c ?? 0,
-    entryCount: e?.c ?? 0,
-  };
-}
 
 router.get("/tenants", async (_req, res): Promise<void> => {
   const tenants = await db

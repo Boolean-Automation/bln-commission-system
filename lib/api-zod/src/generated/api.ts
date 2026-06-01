@@ -339,6 +339,86 @@ export const RecomputeCommissionsResponse = zod.object({
 
 
 /**
+ * @summary List Airtable bases reachable through the connection
+ */
+export const ListAirtableBasesResponseItem = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "permissionLevel": zod.string()
+})
+export const ListAirtableBasesResponse = zod.array(ListAirtableBasesResponseItem)
+
+
+/**
+ * @summary List the tables and fields of an Airtable base
+ */
+export const GetAirtableTablesParams = zod.object({
+  "baseId": zod.coerce.string()
+})
+
+export const GetAirtableTablesResponseItem = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "fields": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "type": zod.string()
+}))
+})
+export const GetAirtableTablesResponse = zod.array(GetAirtableTablesResponseItem)
+
+
+/**
+ * @summary Point the tenant at an Airtable base
+ */
+export const SetAirtableBaseParams = zod.object({
+  "tenantId": zod.coerce.string()
+})
+
+export const SetAirtableBaseBody = zod.object({
+  "baseId": zod.string()
+})
+
+export const SetAirtableBaseResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "status": zod.enum(['active', 'paused']),
+  "airtableBaseId": zod.string().nullish(),
+  "airtableConnected": zod.boolean(),
+  "peopleCount": zod.number(),
+  "jobsCount": zod.number(),
+  "entryCount": zod.number(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Pull people and jobs from Airtable, then recompute
+ */
+export const SyncFromAirtableParams = zod.object({
+  "tenantId": zod.coerce.string()
+})
+
+export const SyncFromAirtableResponse = zod.object({
+  "tenantId": zod.string(),
+  "peopleUpserted": zod.number(),
+  "peopleRemoved": zod.number(),
+  "jobsUpserted": zod.number(),
+  "jobsRemoved": zod.number(),
+  "recompute": zod.object({
+  "tenantId": zod.string(),
+  "entriesCreated": zod.number(),
+  "entriesUpdated": zod.number(),
+  "entriesUnchanged": zod.number(),
+  "adjustmentsCreated": zod.number(),
+  "ranAt": zod.string()
+}),
+  "ranAt": zod.string()
+})
+
+
+/**
  * @summary List commission ledger entries for a tenant
  */
 export const ListCommissionsParams = zod.object({

@@ -336,6 +336,38 @@ export interface RecomputeResult {
   ranAt: string;
 }
 
+export interface AirtableBase {
+  id: string;
+  name: string;
+  permissionLevel: string;
+}
+
+export interface AirtableField {
+  id: string;
+  name: string;
+  type: string;
+}
+
+export interface AirtableTable {
+  id: string;
+  name: string;
+  fields: AirtableField[];
+}
+
+export interface SetAirtableBaseInput {
+  baseId: string;
+}
+
+export interface SyncResult {
+  tenantId: string;
+  peopleUpserted: number;
+  peopleRemoved: number;
+  jobsUpserted: number;
+  jobsRemoved: number;
+  recompute: RecomputeResult;
+  ranAt: string;
+}
+
 /**
  * Resource not found
  */

@@ -21,6 +21,8 @@ import type {
 
 import type {
   ActivityItem,
+  AirtableBase,
+  AirtableTable,
   BadRequestResponse,
   CommissionAdjustment,
   CommissionEntry,
@@ -41,6 +43,8 @@ import type {
   RuleModule,
   SchemaMapping,
   SchemaMappingInput,
+  SetAirtableBaseInput,
+  SyncResult,
   Tenant
 } from './api.schemas';
 
@@ -1128,6 +1132,302 @@ export const useRecomputeCommissions = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getRecomputeCommissionsMutationOptions(options));
+    }
+
+export const getListAirtableBasesUrl = () => {
+
+
+
+
+  return `/api/airtable/bases`
+}
+
+/**
+ * @summary List Airtable bases reachable through the connection
+ */
+export const listAirtableBases = async ( options?: RequestInit): Promise<AirtableBase[]> => {
+
+  return customFetch<AirtableBase[]>(getListAirtableBasesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAirtableBasesQueryKey = () => {
+    return [
+    `/api/airtable/bases`
+    ] as const;
+    }
+
+
+export const getListAirtableBasesQueryOptions = <TData = Awaited<ReturnType<typeof listAirtableBases>>, TError = ErrorType<BadRequestResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAirtableBases>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAirtableBasesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAirtableBases>>> = ({ signal }) => listAirtableBases({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAirtableBases>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAirtableBasesQueryResult = NonNullable<Awaited<ReturnType<typeof listAirtableBases>>>
+export type ListAirtableBasesQueryError = ErrorType<BadRequestResponse>
+
+
+/**
+ * @summary List Airtable bases reachable through the connection
+ */
+
+export function useListAirtableBases<TData = Awaited<ReturnType<typeof listAirtableBases>>, TError = ErrorType<BadRequestResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAirtableBases>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAirtableBasesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetAirtableTablesUrl = (baseId: string,) => {
+
+
+
+
+  return `/api/airtable/bases/${baseId}/tables`
+}
+
+/**
+ * @summary List the tables and fields of an Airtable base
+ */
+export const getAirtableTables = async (baseId: string, options?: RequestInit): Promise<AirtableTable[]> => {
+
+  return customFetch<AirtableTable[]>(getGetAirtableTablesUrl(baseId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAirtableTablesQueryKey = (baseId: string,) => {
+    return [
+    `/api/airtable/bases/${baseId}/tables`
+    ] as const;
+    }
+
+
+export const getGetAirtableTablesQueryOptions = <TData = Awaited<ReturnType<typeof getAirtableTables>>, TError = ErrorType<BadRequestResponse>>(baseId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAirtableTables>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAirtableTablesQueryKey(baseId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAirtableTables>>> = ({ signal }) => getAirtableTables(baseId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(baseId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAirtableTables>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAirtableTablesQueryResult = NonNullable<Awaited<ReturnType<typeof getAirtableTables>>>
+export type GetAirtableTablesQueryError = ErrorType<BadRequestResponse>
+
+
+/**
+ * @summary List the tables and fields of an Airtable base
+ */
+
+export function useGetAirtableTables<TData = Awaited<ReturnType<typeof getAirtableTables>>, TError = ErrorType<BadRequestResponse>>(
+ baseId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAirtableTables>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAirtableTablesQueryOptions(baseId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getSetAirtableBaseUrl = (tenantId: string,) => {
+
+
+
+
+  return `/api/tenants/${tenantId}/airtable-base`
+}
+
+/**
+ * @summary Point the tenant at an Airtable base
+ */
+export const setAirtableBase = async (tenantId: string,
+    setAirtableBaseInput: SetAirtableBaseInput, options?: RequestInit): Promise<Tenant> => {
+
+  return customFetch<Tenant>(getSetAirtableBaseUrl(tenantId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      setAirtableBaseInput,)
+  }
+);}
+
+
+
+
+export const getSetAirtableBaseMutationOptions = <TError = ErrorType<NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setAirtableBase>>, TError,{tenantId: string;data: BodyType<SetAirtableBaseInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setAirtableBase>>, TError,{tenantId: string;data: BodyType<SetAirtableBaseInput>}, TContext> => {
+
+const mutationKey = ['setAirtableBase'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setAirtableBase>>, {tenantId: string;data: BodyType<SetAirtableBaseInput>}> = (props) => {
+          const {tenantId,data} = props ?? {};
+
+          return  setAirtableBase(tenantId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetAirtableBaseMutationResult = NonNullable<Awaited<ReturnType<typeof setAirtableBase>>>
+    export type SetAirtableBaseMutationBody = BodyType<SetAirtableBaseInput>
+    export type SetAirtableBaseMutationError = ErrorType<NotFoundResponse>
+
+    /**
+ * @summary Point the tenant at an Airtable base
+ */
+export const useSetAirtableBase = <TError = ErrorType<NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setAirtableBase>>, TError,{tenantId: string;data: BodyType<SetAirtableBaseInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof setAirtableBase>>,
+        TError,
+        {tenantId: string;data: BodyType<SetAirtableBaseInput>},
+        TContext
+      > => {
+      return useMutation(getSetAirtableBaseMutationOptions(options));
+    }
+
+export const getSyncFromAirtableUrl = (tenantId: string,) => {
+
+
+
+
+  return `/api/tenants/${tenantId}/sync`
+}
+
+/**
+ * @summary Pull people and jobs from Airtable, then recompute
+ */
+export const syncFromAirtable = async (tenantId: string, options?: RequestInit): Promise<SyncResult> => {
+
+  return customFetch<SyncResult>(getSyncFromAirtableUrl(tenantId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getSyncFromAirtableMutationOptions = <TError = ErrorType<BadRequestResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof syncFromAirtable>>, TError,{tenantId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof syncFromAirtable>>, TError,{tenantId: string}, TContext> => {
+
+const mutationKey = ['syncFromAirtable'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof syncFromAirtable>>, {tenantId: string}> = (props) => {
+          const {tenantId} = props ?? {};
+
+          return  syncFromAirtable(tenantId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SyncFromAirtableMutationResult = NonNullable<Awaited<ReturnType<typeof syncFromAirtable>>>
+
+    export type SyncFromAirtableMutationError = ErrorType<BadRequestResponse>
+
+    /**
+ * @summary Pull people and jobs from Airtable, then recompute
+ */
+export const useSyncFromAirtable = <TError = ErrorType<BadRequestResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof syncFromAirtable>>, TError,{tenantId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof syncFromAirtable>>,
+        TError,
+        {tenantId: string},
+        TContext
+      > => {
+      return useMutation(getSyncFromAirtableMutationOptions(options));
     }
 
 export const getListCommissionsUrl = (tenantId: string,

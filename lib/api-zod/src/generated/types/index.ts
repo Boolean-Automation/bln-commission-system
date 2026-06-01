@@ -7,6 +7,9 @@
  */
 
 export * from './activityItem';
+export * from './airtableBase';
+export * from './airtableField';
+export * from './airtableTable';
 export * from './badRequestResponse';
 export * from './commissionAdjustment';
 export * from './commissionEntry';
@@ -42,7 +45,9 @@ export * from './ruleModule';
 export * from './ruleModuleParamsSchema';
 export * from './schemaMapping';
 export * from './schemaMappingInput';
+export * from './setAirtableBaseInput';
 export * from './stateTotal';
+export * from './syncResult';
 export * from './tenant';
 export * from './tenantStatus';
 export * from './typeTotal';
