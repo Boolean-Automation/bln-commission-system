@@ -16,6 +16,7 @@ export const jobsTable = pgTable(
     tenantId: uuid("tenant_id").notNull(),
     airtableRecordId: text("airtable_record_id"),
     jobNumber: text("job_number").notNull(),
+    jobName: text("job_name"),
     customer: text("customer"),
     salesRep: text("sales_rep"),
     manager: text("manager"),

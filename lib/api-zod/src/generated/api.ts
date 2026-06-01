@@ -168,6 +168,7 @@ export const ListJobsResponseItem = zod.object({
   "tenantId": zod.string(),
   "airtableRecordId": zod.string().nullish(),
   "jobNumber": zod.string(),
+  "jobName": zod.string().nullish(),
   "customer": zod.string().nullish(),
   "salesRep": zod.string().nullish(),
   "manager": zod.string().nullish(),

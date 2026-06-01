@@ -121,6 +121,7 @@ async function main() {
       tableName: "Jobs",
       fields: [
         { canonical: "jobNumber", label: "Job Number", required: true, mapped: true, airtableFieldId: null, airtableFieldName: "Estimate/Job Number" },
+        { canonical: "jobName", label: "Job Name", required: false, mapped: true, airtableFieldId: null, airtableFieldName: "Job Name" },
         { canonical: "customer", label: "Customer", required: false, mapped: true, airtableFieldId: null, airtableFieldName: "Company" },
         { canonical: "salesRep", label: "Sales Rep", required: true, mapped: true, airtableFieldId: null, airtableFieldName: "Sales" },
         { canonical: "manager", label: "Project Manager", required: false, mapped: true, airtableFieldId: null, airtableFieldName: "Coordinator" },

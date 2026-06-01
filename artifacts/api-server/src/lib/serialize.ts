@@ -50,6 +50,7 @@ export function serializeJob(j: Job) {
     tenantId: j.tenantId,
     airtableRecordId: j.airtableRecordId ?? null,
     jobNumber: j.jobNumber,
+    jobName: j.jobName ?? null,
     customer: j.customer ?? null,
     salesRep: j.salesRep ?? null,
     manager: j.manager ?? null,

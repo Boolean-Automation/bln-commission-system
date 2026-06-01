@@ -28,7 +28,7 @@ export function Jobs() {
           <Table>
             <TableHeader className="bg-muted/50 sticky top-0 z-10 shadow-sm">
               <TableRow>
-                <TableHead>Job Number</TableHead>
+                <TableHead>Job Name</TableHead>
                 <TableHead>Customer</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Sales Rep</TableHead>
@@ -55,7 +55,7 @@ export function Jobs() {
               ) : jobs.length > 0 ? (
                 jobs.map((job) => (
                   <TableRow key={job.id}>
-                    <TableCell className="font-medium font-mono text-sm">{job.jobNumber}</TableCell>
+                    <TableCell className="font-medium text-sm max-w-[220px] truncate" title={job.jobName || job.jobNumber}>{job.jobName || job.jobNumber}</TableCell>
                     <TableCell className="max-w-[150px] truncate" title={job.customer || ""}>{job.customer || "-"}</TableCell>
                     <TableCell>
                       <Badge variant={job.cancelled ? 'destructive' : 'secondary'} className="capitalize">

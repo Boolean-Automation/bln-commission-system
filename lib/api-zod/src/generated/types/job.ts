@@ -13,6 +13,8 @@ export interface Job {
   airtableRecordId?: string | null;
   jobNumber: string;
   /** @nullable */
+  jobName?: string | null;
+  /** @nullable */
   customer?: string | null;
   /** @nullable */
   salesRep?: string | null;

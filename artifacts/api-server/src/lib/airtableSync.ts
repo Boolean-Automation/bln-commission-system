@@ -140,6 +140,7 @@ export async function syncTenantFromAirtable(
     const status = parseStr(get("status")) ?? "open";
     const values = {
       jobNumber,
+      jobName: parseStr(get("jobName")),
       customer: parseStr(get("customer")),
       salesRep: parseStr(get("salesRep")),
       manager: parseStr(get("manager")),
