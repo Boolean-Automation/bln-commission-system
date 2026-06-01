@@ -15,6 +15,39 @@ import {
 type Tier = { ytdUpTo: number | null; rate: number };
 type PositionTiers = { position: string; tiers: Tier[] };
 
+// ---- Custom (declarative) rule config ----
+type CustomOp =
+  | "eq"
+  | "neq"
+  | "gt"
+  | "gte"
+  | "lt"
+  | "lte"
+  | "contains"
+  | "notContains";
+type CustomCondition = { field: string; op: CustomOp; value: string | number };
+type CustomRecipient = {
+  source: "salesRep" | "manager" | "match";
+  positionContains?: string;
+  rolesInclude?: string[];
+};
+type CustomTier = { upTo: number | null; rate: number };
+type CustomCalculation =
+  | { kind: "flat"; amount: number }
+  | { kind: "percent"; field: "totalAmount" | "gpAmount"; rate: number }
+  | {
+      kind: "tiered";
+      basisField: "totalAmount" | "gpAmount";
+      tiers: CustomTier[];
+    };
+type CustomConfig = {
+  label?: string;
+  recipient: CustomRecipient;
+  conditions: CustomCondition[];
+  calculation: CustomCalculation;
+  respectGate?: boolean;
+};
+
 type DesiredEntry = {
   dedupeKey: string;
   personId: string;
@@ -56,6 +89,119 @@ function pickTier(tiers: Tier[], ytd: number): Tier | undefined {
     if (t.ytdUpTo === null || ytd < t.ytdUpTo) return t;
   }
   return tiers[tiers.length - 1];
+}
+
+function pickCustomTier(
+  tiers: CustomTier[],
+  ytd: number,
+): CustomTier | undefined {
+  for (const t of tiers) {
+    if (t.upTo === null || ytd < t.upTo) return t;
+  }
+  return tiers[tiers.length - 1];
+}
+
+// Resolve the value of a custom-condition field from a job/person pair.
+function customFieldValue(
+  field: string,
+  job: Job,
+  person: Person,
+): string | number | null {
+  switch (field) {
+    case "job.totalAmount":
+      return job.totalAmount ?? null;
+    case "job.gpAmount":
+      return job.gpAmount ?? null;
+    case "job.gpPct":
+      return job.gpPct ?? null;
+    case "job.leadSource":
+      return job.leadSource ?? null;
+    case "job.status":
+      return job.status ?? null;
+    case "job.customer":
+      return job.customer ?? null;
+    case "person.position":
+      return person.position ?? null;
+    case "person.ytdSales":
+      return person.ytdSales ?? null;
+    case "person.roles":
+      return (person.roles ?? []).join(", ");
+    default:
+      return null;
+  }
+}
+
+function evalCustomCondition(
+  cond: CustomCondition,
+  job: Job,
+  person: Person,
+): boolean {
+  const actual = customFieldValue(cond.field, job, person);
+  const expected = cond.value;
+  switch (cond.op) {
+    case "eq":
+    case "neq": {
+      const eq =
+        String(actual ?? "")
+          .trim()
+          .toLowerCase() ===
+        String(expected ?? "")
+          .trim()
+          .toLowerCase();
+      return cond.op === "eq" ? eq : !eq;
+    }
+    case "contains":
+    case "notContains": {
+      const has = String(actual ?? "")
+        .toLowerCase()
+        .includes(String(expected ?? "").toLowerCase());
+      return cond.op === "contains" ? has : !has;
+    }
+    case "gt":
+    case "gte":
+    case "lt":
+    case "lte": {
+      const a = typeof actual === "number" ? actual : Number(actual);
+      const b = typeof expected === "number" ? expected : Number(expected);
+      if (!Number.isFinite(a) || !Number.isFinite(b)) return false;
+      if (cond.op === "gt") return a > b;
+      if (cond.op === "gte") return a >= b;
+      if (cond.op === "lt") return a < b;
+      return a <= b;
+    }
+    default:
+      return false;
+  }
+}
+
+function resolveCustomRecipients(
+  recipient: CustomRecipient,
+  job: Job,
+  people: Person[],
+): Person[] {
+  if (recipient.source === "salesRep") {
+    const p = findPersonByName(people, job.salesRep);
+    return p ? [p] : [];
+  }
+  if (recipient.source === "manager") {
+    const p = findPersonByName(people, job.manager);
+    return p ? [p] : [];
+  }
+  // match by position substring and/or role
+  const positionContains = (recipient.positionContains ?? "").trim().toLowerCase();
+  const rolesInclude = (recipient.rolesInclude ?? [])
+    .map((r) => r.trim().toLowerCase())
+    .filter((r) => r.length > 0);
+  if (!positionContains && rolesInclude.length === 0) return [];
+  return people.filter((p) => {
+    const byPosition =
+      positionContains.length > 0 &&
+      (p.position ?? "").trim().toLowerCase().includes(positionContains);
+    const byRole =
+      rolesInclude.length > 0 &&
+      (p.roles ?? []).some((r) => rolesInclude.includes(r.trim().toLowerCase()));
+    return byPosition || byRole;
+  });
 }
 
 export type RecomputeResult = {
@@ -302,6 +448,83 @@ export async function recomputeTenant(
             flat: amount,
           },
         });
+      } else if (inst.ruleModuleKey === "custom") {
+        const cfg = inst.params as unknown as CustomConfig;
+        if (!cfg || !cfg.recipient || !cfg.calculation) continue;
+        const recipients = resolveCustomRecipients(cfg.recipient, job, people);
+        if (recipients.length === 0) continue;
+        const conditions = Array.isArray(cfg.conditions) ? cfg.conditions : [];
+        const respectGate = cfg.respectGate === true;
+        const gated =
+          respectGate &&
+          gateFloor !== null &&
+          job.gpPct !== null &&
+          job.gpPct !== undefined &&
+          job.gpPct < gateFloor;
+
+        for (const person of recipients) {
+          // All conditions must pass (AND) for this job/person pair.
+          if (!conditions.every((c) => evalCustomCondition(c, job, person)))
+            continue;
+
+          const calc = cfg.calculation;
+          let raw = 0;
+          const snapshot: Record<string, unknown> = {
+            rule: "custom",
+            label: cfg.label ?? "Custom rule",
+            recipient: cfg.recipient.source,
+          };
+          if (calc.kind === "flat") {
+            raw = num(calc.amount, 0);
+            snapshot["calculation"] = "flat";
+            snapshot["flat"] = raw;
+          } else if (calc.kind === "percent") {
+            const basis =
+              calc.field === "gpAmount" ? (job.gpAmount ?? 0) : total;
+            const rate = num(calc.rate, 0);
+            raw = basis * rate;
+            snapshot["calculation"] = "percent";
+            snapshot["basisField"] = calc.field;
+            snapshot["basis"] = basis;
+            snapshot["rate"] = rate;
+            snapshot["formula"] = `${(rate * 100).toFixed(2)}% x ${basis}`;
+          } else if (calc.kind === "tiered") {
+            const ytd = person.ytdSales ?? 0;
+            const tier = pickCustomTier(
+              Array.isArray(calc.tiers) ? calc.tiers : [],
+              ytd,
+            );
+            if (!tier) continue;
+            const basis =
+              calc.basisField === "gpAmount" ? (job.gpAmount ?? 0) : total;
+            raw = basis * tier.rate;
+            snapshot["calculation"] = "tiered";
+            snapshot["basisField"] = calc.basisField;
+            snapshot["basis"] = basis;
+            snapshot["ytdSales"] = ytd;
+            snapshot["rate"] = tier.rate;
+            snapshot["formula"] = `${(tier.rate * 100).toFixed(2)}% x ${basis}`;
+          } else {
+            continue;
+          }
+
+          const amount = gated ? 0 : round2(raw);
+          snapshot["gpPct"] = job.gpPct;
+          snapshot["gated"] = gated;
+          desired.push({
+            dedupeKey: `${inst.id}:${job.id}:${person.id}:MSC`,
+            personId: person.id,
+            personName: person.name,
+            type: "MSC",
+            sourceKind: "job",
+            sourceId: job.id,
+            sourceLabel: label,
+            amount,
+            positionAtCosted: person.position ?? null,
+            ruleInstanceIds: [inst.id],
+            computationSnapshot: snapshot,
+          });
+        }
       }
     }
   }

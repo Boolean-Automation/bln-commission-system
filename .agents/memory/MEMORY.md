@@ -1,1 +1,1 @@
-- [Paragon Airtable semantics](paragon-airtable-semantics.md) — job cancellation derives from project-status rollup (Job Status is only New/Open/Closed); YTD Sales computed in engine, not synced.
+- [Commission engine conventions](commission-engine.md) — custom rules emit type "MSC"; percent params stored as decimals (display ×100); rule catalog is form-driven metadata, no raw JSON.

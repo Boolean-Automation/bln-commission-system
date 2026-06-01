@@ -6,4 +6,4 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type RuleModuleParamsSchema = { [key: string]: unknown };
+export type RuleInstanceCreateParams = { [key: string]: unknown };

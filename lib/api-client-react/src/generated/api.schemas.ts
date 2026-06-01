@@ -153,7 +153,56 @@ export interface SchemaMappingInput {
   entities: EntityMapping[];
 }
 
-export type RuleModuleParamsSchema = { [key: string]: unknown };
+export type FieldDefType = typeof FieldDefType[keyof typeof FieldDefType];
+
+
+export const FieldDefType = {
+  number: 'number',
+  percent: 'percent',
+  currency: 'currency',
+  text: 'text',
+  select: 'select',
+  multiselect: 'multiselect',
+  stringlist: 'stringlist',
+  list: 'list',
+} as const;
+
+export type FieldDefOptionsItem = {
+  value: string;
+  label: string;
+};
+
+export interface FieldDef {
+  key: string;
+  label: string;
+  type: FieldDefType;
+  /** @nullable */
+  help?: string | null;
+  /** @nullable */
+  min?: number | null;
+  /** @nullable */
+  max?: number | null;
+  /** @nullable */
+  step?: number | null;
+  /** @nullable */
+  nullable?: boolean | null;
+  /** @nullable */
+  placeholder?: string | null;
+  /** @nullable */
+  options?: FieldDefOptionsItem[] | null;
+  /** @nullable */
+  itemFields?: FieldDef[] | null;
+}
+
+export type RuleModuleBuilder = typeof RuleModuleBuilder[keyof typeof RuleModuleBuilder];
+
+
+export const RuleModuleBuilder = {
+  fields: 'fields',
+  custom: 'custom',
+} as const;
+
+export type RuleModuleDefaultParams = { [key: string]: unknown };
 
 export interface RuleModule {
   key: string;
@@ -161,7 +210,9 @@ export interface RuleModule {
   category: string;
   description: string;
   summary: string;
-  paramsSchema: RuleModuleParamsSchema;
+  builder: RuleModuleBuilder;
+  fields: FieldDef[];
+  defaultParams: RuleModuleDefaultParams;
 }
 
 export type RuleInstanceParams = { [key: string]: unknown };
@@ -185,6 +236,20 @@ export type RuleInstanceUpdateParams = { [key: string]: unknown };
 export interface RuleInstanceUpdate {
   params?: RuleInstanceUpdateParams;
   enabled?: boolean;
+}
+
+export type RuleInstanceCreateParams = { [key: string]: unknown };
+
+export interface RuleInstanceCreate {
+  ruleModuleKey: string;
+  name?: string;
+  description?: string;
+  params?: RuleInstanceCreateParams;
+  enabled?: boolean;
+}
+
+export interface ReorderRuleInstances {
+  orderedIds: string[];
 }
 
 export interface CommissionPlan {

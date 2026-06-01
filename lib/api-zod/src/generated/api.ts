@@ -267,7 +267,24 @@ export const ListRuleModulesResponseItem = zod.object({
   "category": zod.string(),
   "description": zod.string(),
   "summary": zod.string(),
-  "paramsSchema": zod.record(zod.string(), zod.unknown())
+  "builder": zod.enum(['fields', 'custom']),
+  "fields": zod.array(zod.object({
+  "key": zod.string(),
+  "label": zod.string(),
+  "type": zod.enum(['number', 'percent', 'currency', 'text', 'select', 'multiselect', 'stringlist', 'list']),
+  "help": zod.string().nullish(),
+  "min": zod.number().nullish(),
+  "max": zod.number().nullish(),
+  "step": zod.number().nullish(),
+  "nullable": zod.boolean().nullish(),
+  "placeholder": zod.string().nullish(),
+  "options": zod.array(zod.object({
+  "value": zod.string(),
+  "label": zod.string()
+})).nullish(),
+  "itemFields": zod.array(zod.unknown()).nullish()
+})),
+  "defaultParams": zod.record(zod.string(), zod.unknown())
 })
 export const ListRuleModulesResponse = zod.array(ListRuleModulesResponseItem)
 
@@ -280,6 +297,72 @@ export const GetActivePlanParams = zod.object({
 })
 
 export const GetActivePlanResponse = zod.object({
+  "id": zod.string(),
+  "tenantId": zod.string(),
+  "name": zod.string(),
+  "effectiveFrom": zod.string(),
+  "effectiveTo": zod.string().nullish(),
+  "ruleInstances": zod.array(zod.object({
+  "id": zod.string(),
+  "planId": zod.string(),
+  "ruleModuleKey": zod.string(),
+  "ruleModuleName": zod.string(),
+  "description": zod.string(),
+  "params": zod.record(zod.string(), zod.unknown()),
+  "appliesTo": zod.record(zod.string(), zod.unknown()),
+  "enabled": zod.boolean(),
+  "order": zod.number()
+}))
+})
+
+
+/**
+ * @summary Add a rule instance to the tenant's plan (creating the plan if needed)
+ */
+export const CreateRuleInstanceParams = zod.object({
+  "tenantId": zod.coerce.string()
+})
+
+export const CreateRuleInstanceBody = zod.object({
+  "ruleModuleKey": zod.string(),
+  "name": zod.string().optional(),
+  "description": zod.string().optional(),
+  "params": zod.record(zod.string(), zod.unknown()).optional(),
+  "enabled": zod.boolean().optional()
+})
+
+export const CreateRuleInstanceResponse = zod.object({
+  "id": zod.string(),
+  "tenantId": zod.string(),
+  "name": zod.string(),
+  "effectiveFrom": zod.string(),
+  "effectiveTo": zod.string().nullish(),
+  "ruleInstances": zod.array(zod.object({
+  "id": zod.string(),
+  "planId": zod.string(),
+  "ruleModuleKey": zod.string(),
+  "ruleModuleName": zod.string(),
+  "description": zod.string(),
+  "params": zod.record(zod.string(), zod.unknown()),
+  "appliesTo": zod.record(zod.string(), zod.unknown()),
+  "enabled": zod.boolean(),
+  "order": zod.number()
+}))
+})
+
+
+/**
+ * @summary Set the order of rule instances within the tenant's plan
+ */
+export const ReorderRuleInstancesParams = zod.object({
+  "tenantId": zod.coerce.string()
+})
+
+export const ReorderRuleInstancesBody = zod.object({
+  "orderedIds": zod.array(zod.string())
+})
+
+export const ReorderRuleInstancesResponse = zod.object({
   "id": zod.string(),
   "tenantId": zod.string(),
   "name": zod.string(),
@@ -321,6 +404,14 @@ export const UpdateRuleInstanceResponse = zod.object({
   "appliesTo": zod.record(zod.string(), zod.unknown()),
   "enabled": zod.boolean(),
   "order": zod.number()
+})
+
+
+/**
+ * @summary Remove a rule instance from its plan
+ */
+export const DeleteRuleInstanceParams = zod.object({
+  "ruleInstanceId": zod.coerce.string()
 })
 
 

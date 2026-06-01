@@ -38,7 +38,9 @@ import type {
   PayrollLine,
   Person,
   RecomputeResult,
+  ReorderRuleInstances,
   RuleInstance,
+  RuleInstanceCreate,
   RuleInstanceUpdate,
   RuleModule,
   SchemaMapping,
@@ -992,6 +994,150 @@ export function useGetActivePlan<TData = Awaited<ReturnType<typeof getActivePlan
 
 
 
+export const getCreateRuleInstanceUrl = (tenantId: string,) => {
+
+
+
+
+  return `/api/tenants/${tenantId}/rule-instances`
+}
+
+/**
+ * @summary Add a rule instance to the tenant's plan (creating the plan if needed)
+ */
+export const createRuleInstance = async (tenantId: string,
+    ruleInstanceCreate: RuleInstanceCreate, options?: RequestInit): Promise<CommissionPlan> => {
+
+  return customFetch<CommissionPlan>(getCreateRuleInstanceUrl(tenantId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      ruleInstanceCreate,)
+  }
+);}
+
+
+
+
+export const getCreateRuleInstanceMutationOptions = <TError = ErrorType<BadRequestResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createRuleInstance>>, TError,{tenantId: string;data: BodyType<RuleInstanceCreate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createRuleInstance>>, TError,{tenantId: string;data: BodyType<RuleInstanceCreate>}, TContext> => {
+
+const mutationKey = ['createRuleInstance'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createRuleInstance>>, {tenantId: string;data: BodyType<RuleInstanceCreate>}> = (props) => {
+          const {tenantId,data} = props ?? {};
+
+          return  createRuleInstance(tenantId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateRuleInstanceMutationResult = NonNullable<Awaited<ReturnType<typeof createRuleInstance>>>
+    export type CreateRuleInstanceMutationBody = BodyType<RuleInstanceCreate>
+    export type CreateRuleInstanceMutationError = ErrorType<BadRequestResponse>
+
+    /**
+ * @summary Add a rule instance to the tenant's plan (creating the plan if needed)
+ */
+export const useCreateRuleInstance = <TError = ErrorType<BadRequestResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createRuleInstance>>, TError,{tenantId: string;data: BodyType<RuleInstanceCreate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createRuleInstance>>,
+        TError,
+        {tenantId: string;data: BodyType<RuleInstanceCreate>},
+        TContext
+      > => {
+      return useMutation(getCreateRuleInstanceMutationOptions(options));
+    }
+
+export const getReorderRuleInstancesUrl = (tenantId: string,) => {
+
+
+
+
+  return `/api/tenants/${tenantId}/rule-instances/reorder`
+}
+
+/**
+ * @summary Set the order of rule instances within the tenant's plan
+ */
+export const reorderRuleInstances = async (tenantId: string,
+    reorderRuleInstances: ReorderRuleInstances, options?: RequestInit): Promise<CommissionPlan> => {
+
+  return customFetch<CommissionPlan>(getReorderRuleInstancesUrl(tenantId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      reorderRuleInstances,)
+  }
+);}
+
+
+
+
+export const getReorderRuleInstancesMutationOptions = <TError = ErrorType<BadRequestResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reorderRuleInstances>>, TError,{tenantId: string;data: BodyType<ReorderRuleInstances>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reorderRuleInstances>>, TError,{tenantId: string;data: BodyType<ReorderRuleInstances>}, TContext> => {
+
+const mutationKey = ['reorderRuleInstances'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reorderRuleInstances>>, {tenantId: string;data: BodyType<ReorderRuleInstances>}> = (props) => {
+          const {tenantId,data} = props ?? {};
+
+          return  reorderRuleInstances(tenantId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReorderRuleInstancesMutationResult = NonNullable<Awaited<ReturnType<typeof reorderRuleInstances>>>
+    export type ReorderRuleInstancesMutationBody = BodyType<ReorderRuleInstances>
+    export type ReorderRuleInstancesMutationError = ErrorType<BadRequestResponse | NotFoundResponse>
+
+    /**
+ * @summary Set the order of rule instances within the tenant's plan
+ */
+export const useReorderRuleInstances = <TError = ErrorType<BadRequestResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reorderRuleInstances>>, TError,{tenantId: string;data: BodyType<ReorderRuleInstances>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reorderRuleInstances>>,
+        TError,
+        {tenantId: string;data: BodyType<ReorderRuleInstances>},
+        TContext
+      > => {
+      return useMutation(getReorderRuleInstancesMutationOptions(options));
+    }
+
 export const getUpdateRuleInstanceUrl = (ruleInstanceId: string,) => {
 
 
@@ -1062,6 +1208,76 @@ export const useUpdateRuleInstance = <TError = ErrorType<NotFoundResponse>,
         TContext
       > => {
       return useMutation(getUpdateRuleInstanceMutationOptions(options));
+    }
+
+export const getDeleteRuleInstanceUrl = (ruleInstanceId: string,) => {
+
+
+
+
+  return `/api/rule-instances/${ruleInstanceId}`
+}
+
+/**
+ * @summary Remove a rule instance from its plan
+ */
+export const deleteRuleInstance = async (ruleInstanceId: string, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getDeleteRuleInstanceUrl(ruleInstanceId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteRuleInstanceMutationOptions = <TError = ErrorType<NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteRuleInstance>>, TError,{ruleInstanceId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteRuleInstance>>, TError,{ruleInstanceId: string}, TContext> => {
+
+const mutationKey = ['deleteRuleInstance'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteRuleInstance>>, {ruleInstanceId: string}> = (props) => {
+          const {ruleInstanceId} = props ?? {};
+
+          return  deleteRuleInstance(ruleInstanceId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteRuleInstanceMutationResult = NonNullable<Awaited<ReturnType<typeof deleteRuleInstance>>>
+
+    export type DeleteRuleInstanceMutationError = ErrorType<NotFoundResponse>
+
+    /**
+ * @summary Remove a rule instance from its plan
+ */
+export const useDeleteRuleInstance = <TError = ErrorType<NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteRuleInstance>>, TError,{ruleInstanceId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteRuleInstance>>,
+        TError,
+        {ruleInstanceId: string},
+        TContext
+      > => {
+      return useMutation(getDeleteRuleInstanceMutationOptions(options));
     }
 
 export const getRecomputeCommissionsUrl = (tenantId: string,) => {

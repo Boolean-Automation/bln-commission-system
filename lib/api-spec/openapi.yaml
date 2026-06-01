@@ -226,6 +226,54 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /tenants/{tenantId}/rule-instances:
+    post:
+      operationId: createRuleInstance
+      tags: [rules]
+      summary: Add a rule instance to the tenant's plan (creating the plan if needed)
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RuleInstanceCreate"
+      responses:
+        "200":
+          description: Updated plan including the new rule instance
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommissionPlan"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /tenants/{tenantId}/rule-instances/reorder:
+    post:
+      operationId: reorderRuleInstances
+      tags: [rules]
+      summary: Set the order of rule instances within the tenant's plan
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReorderRuleInstances"
+      responses:
+        "200":
+          description: Updated plan in the new order
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommissionPlan"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /rule-instances/{ruleInstanceId}:
     patch:
       operationId: updateRuleInstance
@@ -250,6 +298,21 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/RuleInstance"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: deleteRuleInstance
+      tags: [rules]
+      summary: Remove a rule instance from its plan
+      parameters:
+        - name: ruleInstanceId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Rule instance removed
         "404":
           $ref: "#/components/responses/NotFound"
 
@@ -670,9 +733,48 @@ components:
           items:
             $ref: "#/components/schemas/EntityMapping"
 
+    FieldDef:
+      type: object
+      required: [key, label, type]
+      properties:
+        key:
+          type: string
+        label:
+          type: string
+        type:
+          type: string
+          enum:
+            [number, percent, currency, text, select, multiselect, stringlist, list]
+        help:
+          type: ["string", "null"]
+        min:
+          type: ["number", "null"]
+        max:
+          type: ["number", "null"]
+        step:
+          type: ["number", "null"]
+        nullable:
+          type: ["boolean", "null"]
+        placeholder:
+          type: ["string", "null"]
+        options:
+          type: ["array", "null"]
+          items:
+            type: object
+            required: [value, label]
+            properties:
+              value:
+                type: string
+              label:
+                type: string
+        itemFields:
+          type: ["array", "null"]
+          items:
+            $ref: "#/components/schemas/FieldDef"
+
     RuleModule:
       type: object
-      required: [key, name, category, description, summary, paramsSchema]
+      required: [key, name, category, description, summary, builder, fields, defaultParams]
       properties:
         key:
           type: string
@@ -684,7 +786,14 @@ components:
           type: string
         summary:
           type: string
-        paramsSchema:
+        builder:
+          type: string
+          enum: [fields, custom]
+        fields:
+          type: array
+          items:
+            $ref: "#/components/schemas/FieldDef"
+        defaultParams:
           type: object
           additionalProperties: true
 
@@ -721,6 +830,31 @@ components:
           additionalProperties: true
         enabled:
           type: boolean
+
+    RuleInstanceCreate:
+      type: object
+      required: [ruleModuleKey]
+      properties:
+        ruleModuleKey:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        params:
+          type: object
+          additionalProperties: true
+        enabled:
+          type: boolean
+
+    ReorderRuleInstances:
+      type: object
+      required: [orderedIds]
+      properties:
+        orderedIds:
+          type: array
+          items:
+            type: string
 
     CommissionPlan:
       type: object

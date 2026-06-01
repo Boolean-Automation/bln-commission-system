@@ -5,7 +5,9 @@
  * Multi-tenant commission system API
  * OpenAPI spec version: 0.1.0
  */
-import type { RuleModuleParamsSchema } from './ruleModuleParamsSchema';
+import type { FieldDef } from './fieldDef';
+import type { RuleModuleBuilder } from './ruleModuleBuilder';
+import type { RuleModuleDefaultParams } from './ruleModuleDefaultParams';
 
 export interface RuleModule {
   key: string;
@@ -13,5 +15,7 @@ export interface RuleModule {
   category: string;
   description: string;
   summary: string;
-  paramsSchema: RuleModuleParamsSchema;
+  builder: RuleModuleBuilder;
+  fields: FieldDef[];
+  defaultParams: RuleModuleDefaultParams;
 }
