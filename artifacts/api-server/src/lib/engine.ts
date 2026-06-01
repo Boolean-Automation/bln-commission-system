@@ -42,6 +42,16 @@ function findPersonByName(
   return people.find((p) => p.name.trim().toLowerCase() === target);
 }
 
+// Positions arrive from Airtable's "Company Position" as a full label with the
+// abbreviation in parentheses, e.g. "Sales Level 2 (SL2)". Rule tier tables are
+// keyed by the abbreviation ("SL2"). Extract the parenthesized code so matching
+// works against either form (full label or bare abbreviation).
+function positionAbbrev(position: string | null): string | null {
+  if (!position) return null;
+  const m = position.match(/\(([^)]+)\)\s*$/);
+  return (m ? m[1] : position).trim().toLowerCase();
+}
+
 function pickTier(tiers: Tier[], ytd: number): Tier | undefined {
   // tiers are ordered ascending by ytdUpTo; null means "no upper bound"
   for (const t of tiers) {
@@ -120,8 +130,10 @@ export async function recomputeTenant(
           ? (inst.params["positions"] as PositionTiers[])
           : [];
         const position = rep.position ?? positions[0]?.position ?? null;
+        const repAbbrev = positionAbbrev(position);
         const table =
-          positions.find((p) => p.position === position) ?? positions[0];
+          positions.find((p) => positionAbbrev(p.position) === repAbbrev) ??
+          positions[0];
         if (!table) continue;
         const ytd = rep.ytdSales ?? 0;
         const tier = pickTier(table.tiers, ytd);

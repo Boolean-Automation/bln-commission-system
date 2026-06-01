@@ -39,3 +39,20 @@ stored as display-string text (e.g. "5/28/2026 4:09pm"), so year is extracted vi
 
 **Why:** operator said YTD is hard to compute in Airtable; engine is now the single
 source of truth (the Airtable `ytdSales` sync was removed).
+
+## Position is a full label with the abbreviation in parentheses
+The mapped `position` field (Airtable "Company Position") stores values like
+"Sales Level 2 (SL2)", "Sales Manager (SM1)", "Production Manager 1 (PMM1)" — the
+abbreviation lives inside the trailing parens, NOT the whole string.
+
+Commission rule tier tables (`tiered_ytd_rate.params.positions[].position`) are keyed
+by the bare abbreviation ("SL1", "SL2"). Matching must extract the parens code via
+`engine.ts positionAbbrev()` (`/\(([^)]+)\)\s*$/`, case-insensitive) — an exact
+string compare silently falls back to the first tier table and mis-pays reps.
+
+**Why:** before this fix, an SL2 rep was paid SL1 rates because
+`"Sales Level 2 (SL2)" === "SL2"` is false.
+**How to apply:** any rule that keys off position must compare via `positionAbbrev()`,
+which also tolerates the bare-abbreviation form used by the seed. `sm_cut` instead uses
+a case-insensitive substring match (`positionContains: "sales manager"`), which already
+works against the full label.
