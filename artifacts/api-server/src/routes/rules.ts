@@ -22,6 +22,7 @@ import {
 } from "@workspace/api-zod";
 import { RULE_MODULES, RULE_MODULE_BY_KEY } from "../lib/ruleCatalog";
 import { serializePlan, serializeRuleInstance } from "../lib/serialize";
+import { validateRuleParams } from "@workspace/rule-validation";
 
 const router: IRouter = Router();
 
@@ -84,6 +85,17 @@ router.post(
       return;
     }
 
+    const effectiveParams = (body.data.params ??
+      moduleDef.defaultParams) as Record<string, unknown>;
+    const paramErrors = validateRuleParams(moduleDef, effectiveParams);
+    if (paramErrors.length > 0) {
+      res.status(400).json({
+        error: paramErrors.map((e) => e.message).join("; "),
+        fieldErrors: paramErrors,
+      });
+      return;
+    }
+
     // Create-plan-if-missing + insert run in a single transaction so concurrent
     // first-rule adds for a brand-new tenant cannot create duplicate plans or
     // race on the next order index.
@@ -117,8 +129,7 @@ router.post(
         ruleModuleKey: moduleDef.key,
         ruleModuleName: body.data.name?.trim() || moduleDef.name,
         description: body.data.description?.trim() || moduleDef.description,
-        params: (body.data.params ??
-          moduleDef.defaultParams) as Record<string, unknown>,
+        params: effectiveParams,
         enabled: body.data.enabled ?? true,
         orderIndex: nextOrder,
       });
@@ -199,9 +210,33 @@ router.patch(
       res.status(400).json({ error: body.error.message });
       return;
     }
+    const [existing] = await db
+      .select()
+      .from(ruleInstancesTable)
+      .where(eq(ruleInstancesTable.id, params.data.ruleInstanceId));
+    if (!existing) {
+      res.status(404).json({ error: "Rule instance not found" });
+      return;
+    }
+
     const set: Record<string, unknown> = {};
-    if (body.data.params !== undefined)
+    if (body.data.params !== undefined) {
+      const moduleDef = RULE_MODULE_BY_KEY.get(existing.ruleModuleKey);
+      if (moduleDef) {
+        const paramErrors = validateRuleParams(
+          moduleDef,
+          body.data.params as Record<string, unknown>,
+        );
+        if (paramErrors.length > 0) {
+          res.status(400).json({
+            error: paramErrors.map((e) => e.message).join("; "),
+            fieldErrors: paramErrors,
+          });
+          return;
+        }
+      }
       set["params"] = body.data.params as Record<string, unknown>;
+    }
     if (body.data.enabled !== undefined) set["enabled"] = body.data.enabled;
     const [updated] = await db
       .update(ruleInstancesTable)

@@ -28,3 +28,18 @@ Rule modules expose `builder` ("fields" | "custom"), typed `fields: FieldDef[]`,
 **How to apply:** To add a new built-in rule, add a module with field metadata + defaultParams
 and an engine branch keyed by module key; the UI needs no per-rule code. The `custom` module
 is special-cased to the `CustomRuleBuilder` component.
+
+## Rule param validation is shared (`@workspace/rule-validation`)
+One metadata-driven `validateRuleParams(module, params)` is the single source of truth, called
+by both the API (reject on create/update) and the web builder (block save, list messages).
+**Why:** api-server and the commissions web app can't import each other (leaf packages), so the
+validator lives in a lib to avoid drift between client and server checks.
+**How to apply:** Add new field-level or custom-rule rules to that lib only; both sides pick it
+up. Built-in fields validate from `FieldDef` metadata; custom rules have bespoke structural
+checks (recipient/conditions/calculation/tier ordering).
+
+## Engine must read rule instances ordered by orderIndex
+`recomputeTenant()` loads instances with `.orderBy(ruleInstancesTable.orderIndex)`.
+**Why:** Rule order is user-controllable (reorder endpoint) and matters for order-sensitive
+selection (e.g. gatekeeper / `enabled.find(...)`); an unordered query makes results
+nondeterministic and silently ignores reordering.

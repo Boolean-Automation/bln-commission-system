@@ -224,6 +224,7 @@ export async function recomputeTenant(
         .select()
         .from(ruleInstancesTable)
         .where(eq(ruleInstancesTable.planId, plan.id))
+        .orderBy(ruleInstancesTable.orderIndex)
     : [];
 
   const enabled = instances.filter((i) => i.enabled);

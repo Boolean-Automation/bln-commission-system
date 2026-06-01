@@ -52,9 +52,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { ArrowDown, ArrowUp, Plus, Trash2, Loader2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Plus, Trash2, Loader2, AlertCircle } from "lucide-react";
 import { RuleParamsForm } from "@/components/plan/RuleParamsForm";
 import { CustomRuleBuilder } from "@/components/plan/CustomRuleBuilder";
+import {
+  validateRuleParams,
+  type RuleModuleLike,
+} from "@workspace/rule-validation";
 
 function useRefreshAfterChange() {
   const { activeTenantId } = useTenant();
@@ -115,7 +119,13 @@ function RuleInstanceEditor({
     enabled !== instance.enabled ||
     JSON.stringify(params) !== JSON.stringify(instance.params);
 
+  const isCustom = instance.ruleModuleKey === "custom";
+  const errors = module
+    ? validateRuleParams(module as RuleModuleLike, params)
+    : [];
+
   const handleSave = () => {
+    if (errors.length > 0) return;
     updateRule.mutate(
       { ruleInstanceId: instance.id, data: { enabled, params } },
       {
@@ -133,8 +143,6 @@ function RuleInstanceEditor({
       },
     );
   };
-
-  const isCustom = instance.ruleModuleKey === "custom";
 
   return (
     <div className="space-y-5 pt-2">
@@ -157,11 +165,25 @@ function RuleInstanceEditor({
         </p>
       )}
 
+      {dirty && errors.length > 0 && (
+        <div className="rounded-md border border-destructive/50 bg-destructive/5 p-3">
+          <div className="flex items-center gap-2 text-sm font-medium text-destructive">
+            <AlertCircle className="h-4 w-4" />
+            Fix the following before saving
+          </div>
+          <ul className="mt-2 list-disc space-y-1 pl-7 text-sm text-destructive">
+            {errors.map((e, i) => (
+              <li key={i}>{e.message}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <div className="flex justify-end">
         <Button
           size="sm"
           onClick={handleSave}
-          disabled={updateRule.isPending || !dirty}
+          disabled={updateRule.isPending || !dirty || errors.length > 0}
         >
           {updateRule.isPending && (
             <Loader2 className="h-4 w-4 mr-1 animate-spin" />
