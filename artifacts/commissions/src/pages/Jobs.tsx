@@ -5,6 +5,7 @@ import { formatCurrency, formatDate } from "@/lib/format";
 import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { JobSourceMappingSheet } from "@/components/jobs/JobSourceMappingSheet";
 
 export function Jobs() {
   const { activeTenantId } = useTenant();
@@ -18,9 +19,12 @@ export function Jobs() {
 
   return (
     <div className="space-y-6 h-full flex flex-col">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Jobs</h1>
-        <p className="text-muted-foreground text-sm">Mirrored job records from source data.</p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Jobs</h1>
+          <p className="text-muted-foreground text-sm">Mirrored job records from source data.</p>
+        </div>
+        {activeTenantId && <JobSourceMappingSheet tenantId={activeTenantId} />}
       </div>
 
       <Card className="flex-1 overflow-hidden flex flex-col">
