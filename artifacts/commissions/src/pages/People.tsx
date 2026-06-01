@@ -1,12 +1,32 @@
 import React from "react";
 import { useTenant } from "@/contexts/TenantContext";
-import { useListPeople, getListPeopleQueryKey } from "@workspace/api-client-react";
-import type { Person } from "@workspace/api-client-react";
+import {
+  useListPeople,
+  getListPeopleQueryKey,
+  useGetSchemaMapping,
+  getGetSchemaMappingQueryKey,
+  useUpdateSchemaMapping,
+} from "@workspace/api-client-react";
+import type { Person, EntityMapping, SchemaMappingInput } from "@workspace/api-client-react";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, XCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import { useToast } from "@/hooks/use-toast";
+import { useQueryClient } from "@tanstack/react-query";
+import { CheckCircle2, XCircle, Settings2, Save, AlertCircle } from "lucide-react";
 
 const BOOLEAN_GROUP = "Boolean Automation";
 const BOOLEAN_DOMAIN = "helloboolean.com";
@@ -38,6 +58,133 @@ function groupPeople(people: Person[]): Array<{ key: string; label: string; peop
     .map(({ key, label, people }) => ({ key, label, people }));
 }
 
+function EditSourceMappingSheet({ activeTenantId }: { activeTenantId: string }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [open, setOpen] = React.useState(false);
+
+  const { data: mapping, isLoading } = useGetSchemaMapping(activeTenantId, {
+    query: { enabled: !!activeTenantId, queryKey: getGetSchemaMappingQueryKey(activeTenantId) },
+  });
+
+  const updateMapping = useUpdateSchemaMapping();
+
+  const personEntity = mapping?.entities.find((e) => e.entityKind === "person");
+  const [fields, setFields] = React.useState<EntityMapping["fields"]>([]);
+  const seededRef = React.useRef(false);
+
+  // Seed editable state once per open session (after mapping loads), and reset on
+  // close. This prevents a background refetch from clobbering in-progress edits.
+  React.useEffect(() => {
+    if (!open) {
+      seededRef.current = false;
+      setFields([]);
+      return;
+    }
+    if (personEntity && !seededRef.current) {
+      setFields(JSON.parse(JSON.stringify(personEntity.fields)));
+      seededRef.current = true;
+    }
+  }, [open, personEntity]);
+
+  const handleFieldChange = (idx: number, newName: string) => {
+    setFields((prev) => {
+      const draft = [...prev];
+      draft[idx] = { ...draft[idx], airtableFieldName: newName, mapped: !!newName.trim() };
+      return draft;
+    });
+  };
+
+  const handleSave = () => {
+    if (!mapping || !personEntity) return;
+    const entities = mapping.entities.map((e) =>
+      e.entityKind === "person" ? { ...e, fields } : e
+    );
+    const data: SchemaMappingInput = { entities };
+    updateMapping.mutate(
+      { tenantId: activeTenantId, data },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getGetSchemaMappingQueryKey(activeTenantId) });
+          toast({ title: "Source mapping updated", description: "Sync from source data to apply the new mapping." });
+          setOpen(false);
+        },
+        onError: (err: any) => {
+          toast({ title: "Update failed", description: err.message, variant: "destructive" });
+        },
+      }
+    );
+  };
+
+  return (
+    <Sheet open={open} onOpenChange={setOpen}>
+      <SheetTrigger asChild>
+        <Button variant="outline" size="sm">
+          <Settings2 className="w-4 h-4 mr-2" />
+          Edit Source Mapping
+        </Button>
+      </SheetTrigger>
+      <SheetContent className="sm:max-w-lg overflow-y-auto flex flex-col">
+        <SheetHeader>
+          <SheetTitle>Edit People Source Mapping</SheetTitle>
+          <SheetDescription>
+            Map each canonical person field to its exact column name in the source data.
+          </SheetDescription>
+        </SheetHeader>
+
+        <div className="flex-1 py-6 space-y-4">
+          {isLoading ? (
+            <div className="space-y-3">
+              <div className="h-12 bg-muted animate-pulse rounded" />
+              <div className="h-12 bg-muted animate-pulse rounded" />
+              <div className="h-12 bg-muted animate-pulse rounded" />
+            </div>
+          ) : !personEntity ? (
+            <div className="text-sm text-muted-foreground text-center py-12">
+              No person mapping available for this tenant.
+            </div>
+          ) : (
+            fields.map((field, idx) => (
+              <div key={field.canonical} className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium">{field.label}</label>
+                  {field.required ? (
+                    <Badge variant="secondary" className="text-[10px] border-0">Required</Badge>
+                  ) : (
+                    <span className="text-[10px] text-muted-foreground/60 uppercase tracking-wider">Optional</span>
+                  )}
+                </div>
+                <div className="text-[11px] text-muted-foreground font-mono">{field.canonical}</div>
+                <div className="relative">
+                  <Input
+                    value={field.airtableFieldName || ""}
+                    onChange={(e) => handleFieldChange(idx, e.target.value)}
+                    placeholder="Exact source column name..."
+                    className={`font-mono text-sm ${field.required && !field.mapped ? "border-destructive bg-destructive/5" : ""}`}
+                  />
+                  {field.required && !field.mapped && (
+                    <AlertCircle className="w-4 h-4 text-destructive absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  )}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        <SheetFooter>
+          <SheetClose asChild>
+            <Button variant="ghost">Cancel</Button>
+          </SheetClose>
+          <Button onClick={handleSave} disabled={updateMapping.isPending || isLoading || !personEntity}>
+            <Save className="w-4 h-4 mr-2" />
+            {updateMapping.isPending ? "Saving..." : "Save Mapping"}
+          </Button>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
 export function People() {
   const { activeTenantId } = useTenant();
 
@@ -52,9 +199,12 @@ export function People() {
 
   return (
     <div className="space-y-6 h-full flex flex-col">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">People</h1>
-        <p className="text-muted-foreground text-sm">Mirrored personnel records from source data.</p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">People</h1>
+          <p className="text-muted-foreground text-sm">Mirrored personnel records from source data.</p>
+        </div>
+        {activeTenantId && <EditSourceMappingSheet activeTenantId={activeTenantId} />}
       </div>
 
       <Card className="flex-1 overflow-hidden flex flex-col">
