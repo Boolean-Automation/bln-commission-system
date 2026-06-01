@@ -36,7 +36,7 @@ export function Jobs() {
                 <TableHead>Job Contact Name</TableHead>
                 <TableHead>Job Status</TableHead>
                 <TableHead>Sales</TableHead>
-                <TableHead>Coordinator</TableHead>
+                <TableHead>Lead Manager</TableHead>
                 <TableHead>Job End Date</TableHead>
                 <TableHead className="text-right">Total Job Amount</TableHead>
                 <TableHead className="text-right">Gross Profit $</TableHead>
