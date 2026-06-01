@@ -38,6 +38,8 @@ export function serializePerson(p: Person) {
     name: p.name,
     roles: p.roles,
     position: p.position ?? null,
+    email: p.email ?? null,
+    company: p.company ?? null,
     ytdSales: p.ytdSales ?? null,
     startDate: p.startDate ?? null,
     active: p.active,

@@ -113,6 +113,8 @@ export async function syncTenantFromAirtable(
       name,
       roles: parseList(get("roles")),
       position: parseStr(get("position")),
+      email: parseStr(get("email")),
+      company: parseStr(get("company")),
       ytdSales: parseNumber(get("ytdSales")),
       startDate: parseStr(get("startDate")),
       active: parseBool(get("active")),

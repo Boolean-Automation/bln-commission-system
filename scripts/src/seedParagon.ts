@@ -108,6 +108,8 @@ async function main() {
         { canonical: "name", label: "Name", required: true, mapped: true, airtableFieldId: null, airtableFieldName: "Name" },
         { canonical: "roles", label: "Roles", required: false, mapped: true, airtableFieldId: null, airtableFieldName: "Role" },
         { canonical: "position", label: "Position", required: true, mapped: true, airtableFieldId: null, airtableFieldName: "Company Position" },
+        { canonical: "email", label: "Work Email", required: false, mapped: true, airtableFieldId: null, airtableFieldName: "Work Email" },
+        { canonical: "company", label: "Company", required: false, mapped: true, airtableFieldId: null, airtableFieldName: "Company" },
         { canonical: "ytdSales", label: "YTD Sales", required: false, mapped: false, airtableFieldId: null, airtableFieldName: null },
         { canonical: "startDate", label: "Start Date", required: false, mapped: true, airtableFieldId: null, airtableFieldName: "Hire Date" },
         { canonical: "active", label: "Active", required: false, mapped: true, airtableFieldId: null, airtableFieldName: "Employment Status" },

@@ -18,6 +18,8 @@ export const peopleTable = pgTable(
     name: text("name").notNull(),
     roles: text("roles").array().notNull().default([]),
     position: text("position"),
+    email: text("email"),
+    company: text("company"),
     ytdSales: doublePrecision("ytd_sales"),
     startDate: text("start_date"),
     active: boolean("active").notNull().default(true),

@@ -16,6 +16,10 @@ export interface Person {
   /** @nullable */
   position?: string | null;
   /** @nullable */
+  email?: string | null;
+  /** @nullable */
+  company?: string | null;
+  /** @nullable */
   ytdSales?: number | null;
   /** @nullable */
   startDate?: string | null;

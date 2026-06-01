@@ -564,6 +564,10 @@ components:
             type: string
         position:
           type: ["string", "null"]
+        email:
+          type: ["string", "null"]
+        company:
+          type: ["string", "null"]
         ytdSales:
           type: ["number", "null"]
         startDate:

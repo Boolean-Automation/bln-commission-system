@@ -149,6 +149,8 @@ export const ListPeopleResponseItem = zod.object({
   "name": zod.string(),
   "roles": zod.array(zod.string()),
   "position": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "company": zod.string().nullish(),
   "ytdSales": zod.number().nullish(),
   "startDate": zod.string().nullish(),
   "active": zod.boolean()
