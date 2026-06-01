@@ -1,1 +1,2 @@
 - [Commission engine conventions](commission-engine.md) — custom rules emit type "MSC"; percent params stored as decimals (display ×100); rule catalog is form-driven metadata, no raw JSON.
+- [Onboarding wizard e2e testing](onboarding-e2e-testing.md) — drive wizard via runTest; add Tiered YTD Rate (default) to guarantee ledger entries; sync is slow (~20-40s); cleanup deletes children first; never touch live Paragon tenant.
