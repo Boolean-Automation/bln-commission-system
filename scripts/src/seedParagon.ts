@@ -63,14 +63,14 @@ async function main() {
 
   // People — sales leads (SL1/SL2), sales manager, project managers.
   const peopleSeed = [
-    { name: "Seth Owens", roles: ["SL"], position: "SL2", ytdSales: 2_150_000 },
-    { name: "Brad Carter", roles: ["SM", "SL"], position: "SL1", ytdSales: 1_420_000 },
-    { name: "Dana Mills", roles: ["SL"], position: "SL2", ytdSales: 1_680_000 },
-    { name: "Priya Shah", roles: ["SL"], position: "SL1", ytdSales: 940_000 },
-    { name: "Marcus Lee", roles: ["SL"], position: "SL1", ytdSales: 560_000 },
-    { name: "Tom Becker", roles: ["PM"], position: "PM", ytdSales: null },
-    { name: "Elena Ruiz", roles: ["PM"], position: "PM", ytdSales: null },
-    { name: "Greg Hall", roles: ["PMM"], position: "PMM", ytdSales: null },
+    { name: "Seth Owens", roles: ["SL"], position: "Sales Level 2", ytdSales: 2_150_000 },
+    { name: "Brad Carter", roles: ["SM", "SL"], position: "Sales Level 1", ytdSales: 1_420_000 },
+    { name: "Dana Mills", roles: ["SL"], position: "Sales Level 2", ytdSales: 1_680_000 },
+    { name: "Priya Shah", roles: ["SL"], position: "Sales Level 1", ytdSales: 940_000 },
+    { name: "Marcus Lee", roles: ["SL"], position: "Sales Level 1", ytdSales: 560_000 },
+    { name: "Tom Becker", roles: ["PM"], position: "Project Manager", ytdSales: null },
+    { name: "Elena Ruiz", roles: ["PM"], position: "Project Manager", ytdSales: null },
+    { name: "Greg Hall", roles: ["PMM"], position: "Production Manager", ytdSales: null },
   ];
   const people = await db
     .insert(peopleTable)
@@ -107,7 +107,7 @@ async function main() {
       fields: [
         { canonical: "name", label: "Name", required: true, mapped: true, airtableFieldId: null, airtableFieldName: "Name" },
         { canonical: "roles", label: "Roles", required: false, mapped: true, airtableFieldId: null, airtableFieldName: "Role" },
-        { canonical: "position", label: "Position", required: true, mapped: true, airtableFieldId: null, airtableFieldName: "Company Position" },
+        { canonical: "position", label: "Position", required: true, mapped: true, airtableFieldId: null, airtableFieldName: "Company Position (No Abbr.)" },
         { canonical: "email", label: "Work Email", required: false, mapped: true, airtableFieldId: null, airtableFieldName: "Work Email" },
         { canonical: "company", label: "Company", required: false, mapped: true, airtableFieldId: null, airtableFieldName: "Company" },
         { canonical: "ytdSales", label: "YTD Sales", required: false, mapped: false, airtableFieldId: null, airtableFieldName: null },
@@ -174,7 +174,7 @@ async function main() {
         basis: "totalAmount",
         positions: [
           {
-            position: "SL1",
+            position: "Sales Level 1",
             tiers: [
               { ytdUpTo: 1_000_000, rate: 0.025 },
               { ytdUpTo: 1_500_000, rate: 0.03 },
@@ -183,7 +183,7 @@ async function main() {
             ],
           },
           {
-            position: "SL2",
+            position: "Sales Level 2",
             tiers: [
               { ytdUpTo: 1_000_000, rate: 0.03 },
               { ytdUpTo: 1_500_000, rate: 0.035 },

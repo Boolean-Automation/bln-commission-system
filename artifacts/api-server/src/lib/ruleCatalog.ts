@@ -21,7 +21,7 @@ export const RULE_MODULES: RuleModuleDef[] = [
       basis: { type: "string", enum: ["totalAmount"], default: "totalAmount" },
       positions: {
         type: "array",
-        description: "One tier table per position (e.g. SL1, SL2)",
+        description: "One tier table per position (e.g. Sales Level 1, Sales Level 2)",
         items: {
           position: "string",
           tiers: "array of { ytdUpTo: number|null, rate: number }",

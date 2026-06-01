@@ -42,14 +42,12 @@ function findPersonByName(
   return people.find((p) => p.name.trim().toLowerCase() === target);
 }
 
-// Positions arrive from Airtable's "Company Position" as a full label with the
-// abbreviation in parentheses, e.g. "Sales Level 2 (SL2)". Rule tier tables are
-// keyed by the abbreviation ("SL2"). Extract the parenthesized code so matching
-// works against either form (full label or bare abbreviation).
-function positionAbbrev(position: string | null): string | null {
+// Positions come from Airtable's "Company Position (No Abbr.)" as full labels
+// (e.g. "Sales Level 2"), and rule tier tables are keyed by the same full label.
+// Normalize for a case/whitespace-insensitive compare.
+function normalizePosition(position: string | null): string | null {
   if (!position) return null;
-  const m = position.match(/\(([^)]+)\)\s*$/);
-  return (m ? m[1] : position).trim().toLowerCase();
+  return position.trim().toLowerCase();
 }
 
 function pickTier(tiers: Tier[], ytd: number): Tier | undefined {
@@ -130,9 +128,9 @@ export async function recomputeTenant(
           ? (inst.params["positions"] as PositionTiers[])
           : [];
         const position = rep.position ?? positions[0]?.position ?? null;
-        const repAbbrev = positionAbbrev(position);
+        const repPosition = normalizePosition(position);
         const table =
-          positions.find((p) => positionAbbrev(p.position) === repAbbrev) ??
+          positions.find((p) => normalizePosition(p.position) === repPosition) ??
           positions[0];
         if (!table) continue;
         const ytd = rep.ytdSales ?? 0;
