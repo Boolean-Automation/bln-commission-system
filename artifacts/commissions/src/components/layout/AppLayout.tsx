@@ -34,6 +34,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import logoUrl from "@assets/channels4_profile_1780667990826.jpg";
 import { 
   LayoutDashboard, 
   BookOpen, 
@@ -181,10 +182,12 @@ export function AppLayout({ children }: AppLayoutProps) {
           <SidebarHeader className="p-4 border-b border-sidebar-border/50">
             <div className="mb-4">
               <h2 className="text-lg font-bold tracking-tight text-sidebar-primary-foreground flex items-center gap-2">
-                <div className="h-6 w-6 rounded-sm bg-sidebar-primary flex items-center justify-center">
-                  <span className="text-xs font-mono text-white">BS</span>
-                </div>
-                Boolean
+                <img
+                  src={logoUrl}
+                  alt="Boolean Automation"
+                  className="h-6 w-6 rounded-sm object-cover"
+                />
+                Boolean Automation
               </h2>
             </div>
             {!isLoading && <TenantSwitcher />}

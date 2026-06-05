@@ -7,7 +7,7 @@ import { z } from "zod/v4";
  * Links an authenticated user (users.id) to a role in the system.
  *
  * Three tiers:
- * - platform_operator: Boolean Strategies staff; manages ALL tenants. `tenantId` is null.
+ * - platform_operator: Boolean Automation staff; manages ALL tenants. `tenantId` is null.
  * - admin: tenant admin (RevOps/Finance) for a single tenant. `tenantId` set, `personId` null.
  * - rep: sales rep, read-only access to their own data within a tenant. `tenantId` set and
  *   `personId` links to the synced people row.

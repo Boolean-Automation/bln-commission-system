@@ -2,6 +2,7 @@ import React from "react";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Loader2, ShieldCheck } from "lucide-react";
+import logoUrl from "@assets/channels4_profile_1780667990826.jpg";
 
 function FullScreen({ children }: { children: React.ReactNode }) {
   return (
@@ -27,12 +28,12 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     return (
       <FullScreen>
         <div className="w-full max-w-sm rounded-lg border bg-card p-8 text-center shadow-sm">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-md bg-primary">
-            <span className="font-mono text-sm font-bold text-primary-foreground">
-              BS
-            </span>
-          </div>
-          <h1 className="text-lg font-semibold">Boolean Strategies</h1>
+          <img
+            src={logoUrl}
+            alt="Boolean Automation"
+            className="mx-auto mb-4 h-12 w-12 rounded-md object-cover"
+          />
+          <h1 className="text-lg font-semibold">Boolean Automation</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Commission operator console
           </p>

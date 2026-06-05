@@ -3,6 +3,7 @@ import { useAuthContext } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Wallet, LogOut } from "lucide-react";
+import logoUrl from "@assets/channels4_profile_1780667990826.jpg";
 
 export function RepView() {
   const { displayName, accessibleTenants, logout } = useAuthContext();
@@ -12,9 +13,11 @@ export function RepView() {
     <div className="flex min-h-screen w-full flex-col bg-background">
       <header className="flex h-14 items-center justify-between border-b bg-card px-6">
         <div className="flex items-center gap-2">
-          <div className="flex h-6 w-6 items-center justify-center rounded-sm bg-primary">
-            <span className="font-mono text-xs text-primary-foreground">BS</span>
-          </div>
+          <img
+            src={logoUrl}
+            alt="Boolean Automation"
+            className="h-6 w-6 rounded-sm object-cover"
+          />
           <span className="text-sm font-medium">My Commissions</span>
         </div>
         <div className="flex items-center gap-3 text-sm text-muted-foreground">
