@@ -211,6 +211,16 @@ export function isStaff(ctx: AuthContextResolved): boolean {
 }
 
 /**
+ * A human-readable actor label for the audit log: prefer the user's email,
+ * then their name, falling back to a generic "operator".
+ */
+export function auditActor(ctx: AuthContextResolved): string {
+  const name =
+    [ctx.user.firstName, ctx.user.lastName].filter(Boolean).join(" ").trim();
+  return ctx.user.email ?? (name.length > 0 ? name : "operator");
+}
+
+/**
  * Require an authenticated session and attach the resolved RBAC context to the
  * request. All routes below the global mount point depend on this.
  */

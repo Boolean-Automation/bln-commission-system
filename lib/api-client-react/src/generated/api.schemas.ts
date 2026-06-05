@@ -151,6 +151,97 @@ export interface DeletePositionResult {
   deleted: boolean;
 }
 
+export type PeriodType = typeof PeriodType[keyof typeof PeriodType];
+
+
+export const PeriodType = {
+  monthly: 'monthly',
+  quarterly: 'quarterly',
+  annual: 'annual',
+} as const;
+
+export interface ManualInput {
+  id: string;
+  tenantId: string;
+  personId: string;
+  periodType: PeriodType;
+  periodKey: string;
+  /** @nullable */
+  quota?: number | null;
+  /** @nullable */
+  ote?: number | null;
+  /** @nullable */
+  acceleratorThreshold?: number | null;
+  /** @nullable */
+  acceleratorMultiplier?: number | null;
+  /** @nullable */
+  notes?: string | null;
+  effectiveFrom: string;
+  effectiveTo: string;
+  /** @nullable */
+  updatedBy?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ManualInputInput {
+  personId: string;
+  periodType: PeriodType;
+  periodKey: string;
+  /** @nullable */
+  quota?: number | null;
+  /** @nullable */
+  ote?: number | null;
+  /** @nullable */
+  acceleratorThreshold?: number | null;
+  /** @nullable */
+  acceleratorMultiplier?: number | null;
+  /** @nullable */
+  notes?: string | null;
+}
+
+export interface DeleteManualInputResult {
+  id: string;
+  deleted: boolean;
+}
+
+export interface ManualInputVariables {
+  personId: string;
+  personName: string;
+  /** @nullable */
+  quota?: number | null;
+  /** @nullable */
+  ote?: number | null;
+  /** @nullable */
+  acceleratorThreshold?: number | null;
+  /** @nullable */
+  acceleratorMultiplier?: number | null;
+}
+
+/**
+ * @nullable
+ */
+export type ManualInputEventBefore = { [key: string]: unknown } | null;
+
+/**
+ * @nullable
+ */
+export type ManualInputEventAfter = { [key: string]: unknown } | null;
+
+export interface ManualInputEvent {
+  id: string;
+  manualInputId: string;
+  tenantId: string;
+  personId: string;
+  eventKind: string;
+  /** @nullable */
+  before?: ManualInputEventBefore;
+  /** @nullable */
+  after?: ManualInputEventAfter;
+  actor: string;
+  at: string;
+}
+
 export type CommissionState = typeof CommissionState[keyof typeof CommissionState];
 
 
@@ -654,6 +745,16 @@ iss?: string;
 
 export type GetActivityParams = {
 limit?: number;
+};
+
+export type ListManualInputsParams = {
+periodType: PeriodType;
+periodKey: string;
+};
+
+export type GetManualInputVariablesParams = {
+periodType: PeriodType;
+periodKey: string;
 };
 
 export type ListCommissionsParams = {

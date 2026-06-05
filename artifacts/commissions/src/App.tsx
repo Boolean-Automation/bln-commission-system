@@ -18,6 +18,7 @@ import { Plan } from "@/pages/Plan";
 import { EntryDetail } from "@/pages/EntryDetail";
 import { Mapping } from "@/pages/Mapping";
 import { Positions } from "@/pages/Positions";
+import { ManualInputs } from "@/pages/ManualInputs";
 import { Access } from "@/pages/Access";
 import { RepView } from "@/pages/RepView";
 
@@ -34,6 +35,7 @@ function StaffRouter() {
         <Route path="/plan" component={Plan} />
         <Route path="/mapping" component={Mapping} />
         <Route path="/positions" component={Positions} />
+        <Route path="/targets" component={ManualInputs} />
         <Route path="/people" component={People} />
         <Route path="/jobs" component={Jobs} />
         <Route path="/access" component={Access} />

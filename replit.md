@@ -27,8 +27,9 @@ To recompute commissions for a tenant: `POST /api/tenants/:tenantId/recompute`.
 
 - API contract (source of truth): `lib/api-spec/openapi.yaml`
 - Generated Zod schemas / hooks: `lib/api-zod` (import via `@workspace/api-zod`)
-- DB schema: `lib/db/src/schema/*.ts` (8 tables; barrel `index.ts`)
+- DB schema: `lib/db/src/schema/*.ts` (barrel `index.ts`)
 - Rule engine: `artifacts/api-server/src/lib/engine.ts`
+- Manual inputs (quota/OTE/targets) helpers: `artifacts/api-server/src/lib/manualInputs.ts` (period validation/derivation + `resolveManualInputVariables`)
 - Rule module catalog: `artifacts/api-server/src/lib/ruleCatalog.ts`
 - Serializers (DB row → API shape): `artifacts/api-server/src/lib/serialize.ts`
 - API routes: `artifacts/api-server/src/routes/*.ts`
@@ -56,6 +57,7 @@ To recompute commissions for a tenant: `POST /api/tenants/:tenantId/recompute`.
 - Configurable rule module library; per-tenant commission plan composed of rule instances with editable params.
 - Per-tenant schema mapping (canonical fields → source/Airtable field names).
 - Payroll summary grouped by earner; one-click recompute.
+- Manual inputs (Quotas & Targets): admins set per-rep, per-period (monthly/quarterly/annual) quota, OTE, and accelerator threshold/multiplier by hand. Stored durably per tenant, editable inline, auditable, and exposed as named variables (`GET /tenants/:id/manual-input-variables`) for downstream attainment/forecast/leaderboard features.
 
 ## User preferences
 
@@ -64,7 +66,7 @@ _Populate as you build._
 ## Gotchas
 
 - The API server is an esbuild bundle — **restart the `api-server` workflow after editing route/lib files** for changes to take effect.
-- Do not re-export the generated types barrel from `lib/api-zod/src/index.ts` (only `export * from "./generated/api"`); re-exporting types causes a TS2308 name collision between path-param and query-param `*Params` schemas.
+- Do not re-export the generated types barrel from `lib/api-zod/src/index.ts` (only `export * from "./generated/api"`); re-exporting types causes a TS2308 name collision between path-param and query-param `*Params` schemas. **Orval codegen re-adds the `export * from "./generated/types"` line on every run** — after `pnpm --filter @workspace/api-spec run codegen`, restore `index.ts` to the single `export * from "./generated/api"` line or `typecheck:libs` fails.
 - Response Zod schemas expect timestamps as strings — call `.toISOString()` in serializers before `.parse()`.
 
 ## Pointers

@@ -24,6 +24,8 @@ tags:
     description: Commission ledger
   - name: insights
     description: Dashboard summaries and activity
+  - name: manualInputs
+    description: Manually-entered rep targets (quota, OTE, accelerators)
   - name: Auth
     description: Browser and mobile authentication endpoints.
   - name: access
@@ -509,6 +511,137 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/Job"
+
+  /tenants/{tenantId}/manual-inputs:
+    get:
+      operationId: listManualInputs
+      tags: [manualInputs]
+      summary: List manual inputs (quota/OTE/targets) for a tenant and period
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+        - name: periodType
+          in: query
+          required: true
+          schema:
+            $ref: "#/components/schemas/PeriodType"
+        - name: periodKey
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Manual input records
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ManualInput"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      operationId: upsertManualInput
+      tags: [manualInputs]
+      summary: Create or update a rep's manual input for a period
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ManualInputInput"
+      responses:
+        "200":
+          description: Upserted manual input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ManualInput"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /tenants/{tenantId}/manual-inputs/{manualInputId}:
+    delete:
+      operationId: deleteManualInput
+      tags: [manualInputs]
+      summary: Delete (clear) a rep's manual input
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+        - $ref: "#/components/parameters/ManualInputId"
+      responses:
+        "200":
+          description: Deletion result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteManualInputResult"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /tenants/{tenantId}/manual-inputs/{manualInputId}/events:
+    get:
+      operationId: getManualInputEvents
+      tags: [manualInputs]
+      summary: Audit history for a manual input
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+        - $ref: "#/components/parameters/ManualInputId"
+      responses:
+        "200":
+          description: Manual input audit events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ManualInputEvent"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /tenants/{tenantId}/manual-input-variables:
+    get:
+      operationId: getManualInputVariables
+      tags: [manualInputs]
+      summary: Resolved manual-input named variables per person for a period
+      description: >-
+        Exposes manual inputs as named variables (quota, ote,
+        acceleratorThreshold, acceleratorMultiplier) keyed by person, for the
+        computation/dashboard layer to compute attainment and forecasts.
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+        - name: periodType
+          in: query
+          required: true
+          schema:
+            $ref: "#/components/schemas/PeriodType"
+        - name: periodKey
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Named variables per person
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ManualInputVariables"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
 
   /tenants/{tenantId}/schema-mapping:
     get:
@@ -997,6 +1130,12 @@ components:
       required: true
       schema:
         type: string
+    ManualInputId:
+      name: manualInputId
+      in: path
+      required: true
+      schema:
+        type: string
     AuthorizationSessionHeader:
       name: Authorization
       in: header
@@ -1242,6 +1381,117 @@ components:
           type: string
         deleted:
           type: boolean
+
+    PeriodType:
+      type: string
+      enum: [monthly, quarterly, annual]
+
+    ManualInput:
+      type: object
+      required: [id, tenantId, personId, periodType, periodKey, effectiveFrom, effectiveTo, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+        tenantId:
+          type: string
+        personId:
+          type: string
+        periodType:
+          $ref: "#/components/schemas/PeriodType"
+        periodKey:
+          type: string
+        quota:
+          type: ["number", "null"]
+        ote:
+          type: ["number", "null"]
+        acceleratorThreshold:
+          type: ["number", "null"]
+        acceleratorMultiplier:
+          type: ["number", "null"]
+        notes:
+          type: ["string", "null"]
+        effectiveFrom:
+          type: string
+        effectiveTo:
+          type: string
+        updatedBy:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+
+    ManualInputInput:
+      type: object
+      required: [personId, periodType, periodKey]
+      properties:
+        personId:
+          type: string
+        periodType:
+          $ref: "#/components/schemas/PeriodType"
+        periodKey:
+          type: string
+        quota:
+          type: ["number", "null"]
+        ote:
+          type: ["number", "null"]
+        acceleratorThreshold:
+          type: ["number", "null"]
+        acceleratorMultiplier:
+          type: ["number", "null"]
+        notes:
+          type: ["string", "null"]
+
+    DeleteManualInputResult:
+      type: object
+      required: [id, deleted]
+      properties:
+        id:
+          type: string
+        deleted:
+          type: boolean
+
+    ManualInputVariables:
+      type: object
+      required: [personId, personName]
+      properties:
+        personId:
+          type: string
+        personName:
+          type: string
+        quota:
+          type: ["number", "null"]
+        ote:
+          type: ["number", "null"]
+        acceleratorThreshold:
+          type: ["number", "null"]
+        acceleratorMultiplier:
+          type: ["number", "null"]
+
+    ManualInputEvent:
+      type: object
+      required: [id, manualInputId, tenantId, personId, eventKind, actor, at]
+      properties:
+        id:
+          type: string
+        manualInputId:
+          type: string
+        tenantId:
+          type: string
+        personId:
+          type: string
+        eventKind:
+          type: string
+        before:
+          type: ["object", "null"]
+          additionalProperties: true
+        after:
+          type: ["object", "null"]
+          additionalProperties: true
+        actor:
+          type: string
+        at:
+          type: string
 
     CommissionState:
       type: string

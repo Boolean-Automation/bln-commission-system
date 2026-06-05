@@ -8,6 +8,8 @@ import type {
   CommissionPlanRow,
   SchemaMappingRow,
   PositionRow,
+  ManualInputRow,
+  ManualInputEventRow,
 } from "@workspace/db";
 
 const iso = (d: Date | null | undefined): string | null =>
@@ -171,5 +173,39 @@ export function serializeMapping(
     // against (resolved from the tenant). Canonical field keys stay neutral.
     provider,
     entities: m.entities,
+  };
+}
+
+export function serializeManualInput(m: ManualInputRow) {
+  return {
+    id: m.id,
+    tenantId: m.tenantId,
+    personId: m.personId,
+    periodType: m.periodType,
+    periodKey: m.periodKey,
+    quota: m.quota ?? null,
+    ote: m.ote ?? null,
+    acceleratorThreshold: m.acceleratorThreshold ?? null,
+    acceleratorMultiplier: m.acceleratorMultiplier ?? null,
+    notes: m.notes ?? null,
+    effectiveFrom: m.effectiveFrom,
+    effectiveTo: m.effectiveTo,
+    updatedBy: m.updatedBy ?? null,
+    createdAt: m.createdAt.toISOString(),
+    updatedAt: m.updatedAt.toISOString(),
+  };
+}
+
+export function serializeManualInputEvent(ev: ManualInputEventRow) {
+  return {
+    id: ev.id,
+    manualInputId: ev.manualInputId,
+    tenantId: ev.tenantId,
+    personId: ev.personId,
+    eventKind: ev.eventKind,
+    before: ev.before ?? null,
+    after: ev.after ?? null,
+    actor: ev.actor,
+    at: ev.at.toISOString(),
   };
 }

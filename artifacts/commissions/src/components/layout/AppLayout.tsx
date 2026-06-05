@@ -48,6 +48,7 @@ import {
   RefreshCw,
   Loader2,
   Tags,
+  Target,
   ShieldCheck,
   LogOut
 } from "lucide-react";
@@ -165,6 +166,7 @@ export function AppLayout({ children }: AppLayoutProps) {
   const configuration = [
     { name: "Commission Plan", href: "/plan", icon: CheckCircle2 },
     { name: "Positions", href: "/positions", icon: Tags },
+    { name: "Quotas & Targets", href: "/targets", icon: Target },
     { name: "Schema Mapping", href: "/mapping", icon: Settings2 },
   ];
 

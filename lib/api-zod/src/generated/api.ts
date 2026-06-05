@@ -522,6 +522,135 @@ export const ListJobsResponse = zod.array(ListJobsResponseItem)
 
 
 /**
+ * @summary List manual inputs (quota/OTE/targets) for a tenant and period
+ */
+export const ListManualInputsParams = zod.object({
+  "tenantId": zod.coerce.string()
+})
+
+export const ListManualInputsQueryParams = zod.object({
+  "periodType": zod.enum(['monthly', 'quarterly', 'annual']),
+  "periodKey": zod.coerce.string()
+})
+
+export const ListManualInputsResponseItem = zod.object({
+  "id": zod.string(),
+  "tenantId": zod.string(),
+  "personId": zod.string(),
+  "periodType": zod.enum(['monthly', 'quarterly', 'annual']),
+  "periodKey": zod.string(),
+  "quota": zod.number().nullish(),
+  "ote": zod.number().nullish(),
+  "acceleratorThreshold": zod.number().nullish(),
+  "acceleratorMultiplier": zod.number().nullish(),
+  "notes": zod.string().nullish(),
+  "effectiveFrom": zod.string(),
+  "effectiveTo": zod.string(),
+  "updatedBy": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+export const ListManualInputsResponse = zod.array(ListManualInputsResponseItem)
+
+
+/**
+ * @summary Create or update a rep's manual input for a period
+ */
+export const UpsertManualInputParams = zod.object({
+  "tenantId": zod.coerce.string()
+})
+
+export const UpsertManualInputBody = zod.object({
+  "personId": zod.string(),
+  "periodType": zod.enum(['monthly', 'quarterly', 'annual']),
+  "periodKey": zod.string(),
+  "quota": zod.number().nullish(),
+  "ote": zod.number().nullish(),
+  "acceleratorThreshold": zod.number().nullish(),
+  "acceleratorMultiplier": zod.number().nullish(),
+  "notes": zod.string().nullish()
+})
+
+export const UpsertManualInputResponse = zod.object({
+  "id": zod.string(),
+  "tenantId": zod.string(),
+  "personId": zod.string(),
+  "periodType": zod.enum(['monthly', 'quarterly', 'annual']),
+  "periodKey": zod.string(),
+  "quota": zod.number().nullish(),
+  "ote": zod.number().nullish(),
+  "acceleratorThreshold": zod.number().nullish(),
+  "acceleratorMultiplier": zod.number().nullish(),
+  "notes": zod.string().nullish(),
+  "effectiveFrom": zod.string(),
+  "effectiveTo": zod.string(),
+  "updatedBy": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
+/**
+ * @summary Delete (clear) a rep's manual input
+ */
+export const DeleteManualInputParams = zod.object({
+  "tenantId": zod.coerce.string(),
+  "manualInputId": zod.coerce.string()
+})
+
+export const DeleteManualInputResponse = zod.object({
+  "id": zod.string(),
+  "deleted": zod.boolean()
+})
+
+
+/**
+ * @summary Audit history for a manual input
+ */
+export const GetManualInputEventsParams = zod.object({
+  "tenantId": zod.coerce.string(),
+  "manualInputId": zod.coerce.string()
+})
+
+export const GetManualInputEventsResponseItem = zod.object({
+  "id": zod.string(),
+  "manualInputId": zod.string(),
+  "tenantId": zod.string(),
+  "personId": zod.string(),
+  "eventKind": zod.string(),
+  "before": zod.record(zod.string(), zod.unknown()).nullish(),
+  "after": zod.record(zod.string(), zod.unknown()).nullish(),
+  "actor": zod.string(),
+  "at": zod.string()
+})
+export const GetManualInputEventsResponse = zod.array(GetManualInputEventsResponseItem)
+
+
+/**
+ * Exposes manual inputs as named variables (quota, ote, acceleratorThreshold, acceleratorMultiplier) keyed by person, for the computation/dashboard layer to compute attainment and forecasts.
+ * @summary Resolved manual-input named variables per person for a period
+ */
+export const GetManualInputVariablesParams = zod.object({
+  "tenantId": zod.coerce.string()
+})
+
+export const GetManualInputVariablesQueryParams = zod.object({
+  "periodType": zod.enum(['monthly', 'quarterly', 'annual']),
+  "periodKey": zod.coerce.string()
+})
+
+export const GetManualInputVariablesResponseItem = zod.object({
+  "personId": zod.string(),
+  "personName": zod.string(),
+  "quota": zod.number().nullish(),
+  "ote": zod.number().nullish(),
+  "acceleratorThreshold": zod.number().nullish(),
+  "acceleratorMultiplier": zod.number().nullish()
+})
+export const GetManualInputVariablesResponse = zod.array(GetManualInputVariablesResponseItem)
+
+
+/**
  * @summary Get the tenant's Airtable schema mapping
  */
 export const GetSchemaMappingParams = zod.object({

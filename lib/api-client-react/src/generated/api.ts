@@ -35,18 +35,25 @@ import type {
   CommissionTransition,
   CreateTenant,
   DashboardSummary,
+  DeleteManualInputResult,
   DeleteMembershipResult,
   DeletePositionResult,
   DeleteTenantResult,
   ErrorEnvelope,
   ForbiddenResponse,
   GetActivityParams,
+  GetManualInputVariablesParams,
   HandleBrowserLoginCallbackParams,
   HealthStatus,
   Job,
   ListCommissionsParams,
+  ListManualInputsParams,
   ListProviders,
   LogoutSuccess,
+  ManualInput,
+  ManualInputEvent,
+  ManualInputInput,
+  ManualInputVariables,
   Membership,
   MembershipInput,
   MembershipUpdate,
@@ -2044,6 +2051,411 @@ export function useListJobs<TData = Awaited<ReturnType<typeof listJobs>>, TError
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getListJobsQueryOptions(tenantId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getListManualInputsUrl = (tenantId: string,
+    params: ListManualInputsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/tenants/${tenantId}/manual-inputs?${stringifiedParams}` : `/api/tenants/${tenantId}/manual-inputs`
+}
+
+/**
+ * @summary List manual inputs (quota/OTE/targets) for a tenant and period
+ */
+export const listManualInputs = async (tenantId: string,
+    params: ListManualInputsParams, options?: RequestInit): Promise<ManualInput[]> => {
+
+  return customFetch<ManualInput[]>(getListManualInputsUrl(tenantId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListManualInputsQueryKey = (tenantId: string,
+    params?: ListManualInputsParams,) => {
+    return [
+    `/api/tenants/${tenantId}/manual-inputs`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListManualInputsQueryOptions = <TData = Awaited<ReturnType<typeof listManualInputs>>, TError = ErrorType<BadRequestResponse | ForbiddenResponse>>(tenantId: string,
+    params: ListManualInputsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listManualInputs>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListManualInputsQueryKey(tenantId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listManualInputs>>> = ({ signal }) => listManualInputs(tenantId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(tenantId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listManualInputs>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListManualInputsQueryResult = NonNullable<Awaited<ReturnType<typeof listManualInputs>>>
+export type ListManualInputsQueryError = ErrorType<BadRequestResponse | ForbiddenResponse>
+
+
+/**
+ * @summary List manual inputs (quota/OTE/targets) for a tenant and period
+ */
+
+export function useListManualInputs<TData = Awaited<ReturnType<typeof listManualInputs>>, TError = ErrorType<BadRequestResponse | ForbiddenResponse>>(
+ tenantId: string,
+    params: ListManualInputsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listManualInputs>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListManualInputsQueryOptions(tenantId,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getUpsertManualInputUrl = (tenantId: string,) => {
+
+
+
+
+  return `/api/tenants/${tenantId}/manual-inputs`
+}
+
+/**
+ * @summary Create or update a rep's manual input for a period
+ */
+export const upsertManualInput = async (tenantId: string,
+    manualInputInput: ManualInputInput, options?: RequestInit): Promise<ManualInput> => {
+
+  return customFetch<ManualInput>(getUpsertManualInputUrl(tenantId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      manualInputInput,)
+  }
+);}
+
+
+
+
+export const getUpsertManualInputMutationOptions = <TError = ErrorType<BadRequestResponse | ForbiddenResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof upsertManualInput>>, TError,{tenantId: string;data: BodyType<ManualInputInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof upsertManualInput>>, TError,{tenantId: string;data: BodyType<ManualInputInput>}, TContext> => {
+
+const mutationKey = ['upsertManualInput'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof upsertManualInput>>, {tenantId: string;data: BodyType<ManualInputInput>}> = (props) => {
+          const {tenantId,data} = props ?? {};
+
+          return  upsertManualInput(tenantId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpsertManualInputMutationResult = NonNullable<Awaited<ReturnType<typeof upsertManualInput>>>
+    export type UpsertManualInputMutationBody = BodyType<ManualInputInput>
+    export type UpsertManualInputMutationError = ErrorType<BadRequestResponse | ForbiddenResponse>
+
+    /**
+ * @summary Create or update a rep's manual input for a period
+ */
+export const useUpsertManualInput = <TError = ErrorType<BadRequestResponse | ForbiddenResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof upsertManualInput>>, TError,{tenantId: string;data: BodyType<ManualInputInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof upsertManualInput>>,
+        TError,
+        {tenantId: string;data: BodyType<ManualInputInput>},
+        TContext
+      > => {
+      return useMutation(getUpsertManualInputMutationOptions(options));
+    }
+
+export const getDeleteManualInputUrl = (tenantId: string,
+    manualInputId: string,) => {
+
+
+
+
+  return `/api/tenants/${tenantId}/manual-inputs/${manualInputId}`
+}
+
+/**
+ * @summary Delete (clear) a rep's manual input
+ */
+export const deleteManualInput = async (tenantId: string,
+    manualInputId: string, options?: RequestInit): Promise<DeleteManualInputResult> => {
+
+  return customFetch<DeleteManualInputResult>(getDeleteManualInputUrl(tenantId,manualInputId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteManualInputMutationOptions = <TError = ErrorType<ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteManualInput>>, TError,{tenantId: string;manualInputId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteManualInput>>, TError,{tenantId: string;manualInputId: string}, TContext> => {
+
+const mutationKey = ['deleteManualInput'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteManualInput>>, {tenantId: string;manualInputId: string}> = (props) => {
+          const {tenantId,manualInputId} = props ?? {};
+
+          return  deleteManualInput(tenantId,manualInputId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteManualInputMutationResult = NonNullable<Awaited<ReturnType<typeof deleteManualInput>>>
+
+    export type DeleteManualInputMutationError = ErrorType<ForbiddenResponse | NotFoundResponse>
+
+    /**
+ * @summary Delete (clear) a rep's manual input
+ */
+export const useDeleteManualInput = <TError = ErrorType<ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteManualInput>>, TError,{tenantId: string;manualInputId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteManualInput>>,
+        TError,
+        {tenantId: string;manualInputId: string},
+        TContext
+      > => {
+      return useMutation(getDeleteManualInputMutationOptions(options));
+    }
+
+export const getGetManualInputEventsUrl = (tenantId: string,
+    manualInputId: string,) => {
+
+
+
+
+  return `/api/tenants/${tenantId}/manual-inputs/${manualInputId}/events`
+}
+
+/**
+ * @summary Audit history for a manual input
+ */
+export const getManualInputEvents = async (tenantId: string,
+    manualInputId: string, options?: RequestInit): Promise<ManualInputEvent[]> => {
+
+  return customFetch<ManualInputEvent[]>(getGetManualInputEventsUrl(tenantId,manualInputId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetManualInputEventsQueryKey = (tenantId: string,
+    manualInputId: string,) => {
+    return [
+    `/api/tenants/${tenantId}/manual-inputs/${manualInputId}/events`
+    ] as const;
+    }
+
+
+export const getGetManualInputEventsQueryOptions = <TData = Awaited<ReturnType<typeof getManualInputEvents>>, TError = ErrorType<ForbiddenResponse | NotFoundResponse>>(tenantId: string,
+    manualInputId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getManualInputEvents>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetManualInputEventsQueryKey(tenantId,manualInputId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getManualInputEvents>>> = ({ signal }) => getManualInputEvents(tenantId,manualInputId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(tenantId && manualInputId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getManualInputEvents>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetManualInputEventsQueryResult = NonNullable<Awaited<ReturnType<typeof getManualInputEvents>>>
+export type GetManualInputEventsQueryError = ErrorType<ForbiddenResponse | NotFoundResponse>
+
+
+/**
+ * @summary Audit history for a manual input
+ */
+
+export function useGetManualInputEvents<TData = Awaited<ReturnType<typeof getManualInputEvents>>, TError = ErrorType<ForbiddenResponse | NotFoundResponse>>(
+ tenantId: string,
+    manualInputId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getManualInputEvents>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetManualInputEventsQueryOptions(tenantId,manualInputId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetManualInputVariablesUrl = (tenantId: string,
+    params: GetManualInputVariablesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/tenants/${tenantId}/manual-input-variables?${stringifiedParams}` : `/api/tenants/${tenantId}/manual-input-variables`
+}
+
+/**
+ * Exposes manual inputs as named variables (quota, ote, acceleratorThreshold, acceleratorMultiplier) keyed by person, for the computation/dashboard layer to compute attainment and forecasts.
+ * @summary Resolved manual-input named variables per person for a period
+ */
+export const getManualInputVariables = async (tenantId: string,
+    params: GetManualInputVariablesParams, options?: RequestInit): Promise<ManualInputVariables[]> => {
+
+  return customFetch<ManualInputVariables[]>(getGetManualInputVariablesUrl(tenantId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetManualInputVariablesQueryKey = (tenantId: string,
+    params?: GetManualInputVariablesParams,) => {
+    return [
+    `/api/tenants/${tenantId}/manual-input-variables`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetManualInputVariablesQueryOptions = <TData = Awaited<ReturnType<typeof getManualInputVariables>>, TError = ErrorType<BadRequestResponse | ForbiddenResponse>>(tenantId: string,
+    params: GetManualInputVariablesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getManualInputVariables>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetManualInputVariablesQueryKey(tenantId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getManualInputVariables>>> = ({ signal }) => getManualInputVariables(tenantId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(tenantId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getManualInputVariables>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetManualInputVariablesQueryResult = NonNullable<Awaited<ReturnType<typeof getManualInputVariables>>>
+export type GetManualInputVariablesQueryError = ErrorType<BadRequestResponse | ForbiddenResponse>
+
+
+/**
+ * @summary Resolved manual-input named variables per person for a period
+ */
+
+export function useGetManualInputVariables<TData = Awaited<ReturnType<typeof getManualInputVariables>>, TError = ErrorType<BadRequestResponse | ForbiddenResponse>>(
+ tenantId: string,
+    params: GetManualInputVariablesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getManualInputVariables>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetManualInputVariablesQueryOptions(tenantId,params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
