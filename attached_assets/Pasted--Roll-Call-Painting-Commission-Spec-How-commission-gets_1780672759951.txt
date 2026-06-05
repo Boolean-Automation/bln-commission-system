@@ -1,0 +1,180 @@
+# Roll Call Painting — Commission Spec
+
+How commission gets calculated, who it pays, and how to tell when a record is "done" (correctly populated and payable). This is what the commission computation app needs to mirror for the Roll Call tenant.
+
+## Sources
+
+- **Live schema:** Airtable base `appeV4OX4oCFgltX5` (Roll Call Painting). Tables: `Commissions` `tblaAvWKZZxj0I9md`, `People` `tblpbiWFo4ADVgB1I`, `Jobs` `tblDG6YveJC0cDjGb`, `Addendums` `tblv5quBoDnK5nTNu`, `Projects` `tblLhQVFqQgtEStvn`.
+- **Schema snapshot used here:** `codex-boolean/boolean-knowledge/clients/roll-call-painting/snapshots/airtable/` — last_snapshot `2026-06-05T08:27:55Z` (this morning's python-cron pull from the Airtable meta API — formulas captured). The Airtable MCP is not currently wired into this workspace, so a live re-pull is not possible from here; the cron snapshot is the freshest source available locally and was taken hours before this spec was written.
+- **Original-build pointer Cody gave Dan in Slack DM (2026-06-02, ts `1780340729.838269`):** `boolean-knowledge/builds/rc-commissions-web`. That directory does not exist in any synced clone (`~/boolean-knowledge`, `~/workspace/.../boolean-knowledge`, `~/codex-boolean/boolean-knowledge` all checked). It is presumably a Cody-local vibe-code prototype that was never pushed to the shared `Boolean-Automation/boolean-knowledge` remote. The spec below is derived from the Airtable formulas + automation scripts that are the system of record, not from that web prototype.
+
+## Users — who can earn commission
+
+`People.Role` is a `multipleSelects` field with choices `Member, Subcontractor, Lead, Manager, Coordinator, Sales, Admin, Automation`. Only three roles earn commission/comp adjustments on Roll Call jobs:
+
+| Role on People | Pays out on | How they're linked to the Job |
+|---|---|---|
+| **Sales** | Original-contract commission on every Job they sold; one commission per Job and one per Addendum where they remain the Sales rep | `Job.Sales` (record link) → `Job.Sales Record ID` lookup |
+| **Project Manager** (`Role = Manager`, sitting in `Project.Project Manager Role`) | PM commission on the Job's Total Job Amount + a PM commission per Addendum | `Project.Project Manager` (record link, on `Projects` table) → rolled up to Jobs via `Job.Project Manager Record ID` |
+| **Appointment Setter** (Christine, `recUpFxiSh6ubId8x`) | $25 flat per scheduled estimate appointment, paid via `Adjustment Amount` on a `Commission Ledger Record Type = Appointment Setter Bonus` row. Architecture and trigger live in `commission-overhaul-plan.md`; Phase 1 manual; Phase 2 is a Prismatic Flow 07 write keyed on YCBM booking ID for idempotency. | Hardcoded employee = Christine; not tied to a Sales/PM role on the Job |
+
+Christine never acts as a Sales rep (Cody confirmation, 2026-04-30). If a Commissions row appears with Christine in `Employee` and `Commission Employee Role` resolves to "Sales", it is a phantom (see 2026-04-30 cleanup).
+
+Other roles on People (`Member`, `Lead`, `Coordinator`, `Admin`, `Subcontractor`, `Automation`) do not earn commission through this system. Coordinators in particular show up on Jobs but are paid hourly, not on commission.
+
+## The rate card
+
+| Earner | Rate | Base | Conditional on |
+|---|---|---|---|
+| Sales | **8%** (encoded directly inside `Commission - Original Contract Calculation` and `Commission - Addendum Calculation` for `Commission Employee Role = "Sales"`) | Original-contract = the Job's original-contract amount (pre-CO); Addendum = the Addendum Total | Job not Cancelled; row not Declined; not a Payout/Adjustment ledger type |
+| Project Manager — original contract | **10%** of `Job Amount - Contract × Job Gross Profit %` | `Job Amount - Contract` × `Gross Profit %` (Jobs table) | `PM Gross Profit Goal Hit = TRUE` (formula: `Gross Profit % ≥ 0.55`). If FALSE, the formula evaluates to **0**. |
+| Project Manager — addendum | **15%** of `Addendum Total × Overall Job Gross Profit %` | Per-Addendum, evaluated only when `Addendum.Status = Accepted` and the parent Project is Closed | Addendum Accepted; Project Closed; row not Declined |
+| Christine — appointment setter | **$25 flat** | n/a | One row per scheduled YCBM appointment; reversed on cancellation (see "Cancellation handling") |
+
+The rates above match what I can read in the live formulas plus the Darrell Hacker audit (2026-05-20) where the math `6,921 × 0.52 × 0.1 = $359.89` (PM original contract) and `5,700 × 0.52 × 0.15 = $444.60` (PM addendum) were used as ground truth.
+
+## Commissions table — the only ledger
+
+Everything is one row in `Commissions` (`tblaAvWKZZxj0I9md`). The shape of the row tells you what it is.
+
+Key fields per row:
+
+- `Employee` (link → People) — who gets paid.
+- `Commission Employee Role` (formula → singleSelect: `Sales` | `Project Manager`) — derived from `Employee Role` lookup. If `Role = "Manager"` → "Project Manager"; if `Role = "Sales"` → "Sales"; else blank. This is what the calculation formulas branch on, **not** the People.Role enum directly.
+- `Commission Ledger Record Type` (singleSelect): `Earnings` | `Payout` | `PM Base Pay` | `Adjustment` | `Appointment Setter Bonus`. `Earnings` is the default for sales/PM commission. `Adjustment` is a non-formula manual money-in/money-out row (Christine's $25 bonuses ride this same field via `Adjustment Amount`, marked `Appointment Setter Bonus` to filter cleanly). `Payout` records the actual payment to the employee.
+- `Status` (singleSelect): `Approved` | `Declined`. **Declined zeroes the formula columns** — that's the "void over delete" pattern. We never delete rows; we set `Status = Declined` and put the reason in `Reconcilation Notes` (the typo'd audit-trail field, `fldOfhHebb7dvK3wJ`).
+- `Job` (link → Jobs) and/or `Addendum` (link → Addendums) — what the row is paid against.
+- `Commission Type` (formula → `Addendum` if `Addendum` is linked, else `Job - Original Contract`).
+- `Commission - Original Contract Calculation` (formula, currency) — pays out only when this is an original-contract row (no Addendum), Status=Approved, ledger type Earnings, Job not Cancelled.
+- `Commission - Addendum Calculation` (formula, currency) — pays out only when an Addendum is linked, Addendum Status=Accepted, parent Project Closed, Status=Approved, ledger type Earnings, Job not Cancelled.
+- `Commission Total` (formula = original-contract calc + addendum calc) — this is the canonical per-row earned amount the dashboard should sum on.
+- `Commission Amount` (currency, **stored**) — a denormalized mirror of `Commission Total` maintained by an automation. It does *not* live-update from formulas; if a Job's GP changes, `Commission Total` recomputes immediately but `Commission Amount` waits for the automation to fire. Rollups historically read `Commission Amount`, which is why the overhaul plan recommends retargeting them to `Commission Total` (see Tier 3 batch).
+- `Adjustment Amount` (currency) — used for Christine's $25 bonus and any manual adjustments. Rolled up by `People.Compensation Adjustments`.
+- `Base Payout`, `Commission Payout`, `Total Payout Amount`, `Check No.` — payout side of the ledger, populated on `Commission Ledger Record Type = Payout` rows.
+
+### When rows get created
+
+| Trigger | Automation | Creates |
+|---|---|---|
+| `Jobs.Job Status` flips (via "⚙️ Update Job Status Based on Project Statuses" automation chain) | `When Job Active Status Changes → (Open/Closed) & Create PM Commission Record` (enabled, last successful 2026-05-14 21:46) | One Sales-role row (Notes: "This is the sales commission record for the original contract amount.") + one PM-role row (Notes: "This is the project manager commission record for the Total Job amount."), both `Ledger Type = Earnings`, `Status` defaults to Approved. Self-heals: if the PM row exists but `Employee` ≠ current `Project Manager Record ID`, the script rewrites `Employee` to match. If `Project Manager Record ID` is empty, it clears `Employee` but keeps the row as a placeholder. |
+| `Addendums.Commissions` is empty (i.e. no commission row yet) | `When Addendum Created → Create Commission Record` (enabled, last successful 2026-05-14 21:49) | One Sales-role row + one PM-role row linked to BOTH the Addendum and the parent Job, `Ledger Type = Earnings`. Will create rows with blank `Employee` if the Job has no Sales rep / no PM yet — the row is the slot, not the assignment. |
+| Christine schedules an appointment via YCBM | **Phase 1 (now):** Christine fills the Airtable form on the Commissions table (Customer, Estimate Date, Notes); a defaults automation backfills Employee=Christine, Adjustment Amount=$25, Status=Approved, Ledger Type=Appointment Setter Bonus. **Phase 2 (gated):** RCL Marketing Integration v86 Flow 07 ("New Appointment") writes the row directly, idempotency-keyed on the YCBM booking ID stored in `External Trigger ID`. | One `Appointment Setter Bonus` row with `Adjustment Amount = $25`. |
+
+### Cancellation handling
+
+The system's existing semantics (Flow 08 destructively cancels YCBM bookings on cancel) drive the comp policy. The rules:
+
+- **Job cancelled** (`Jobs.Job Cancelled? = "Job Cancelled"`, derived from `Job Status` containing "cancel"): every linked commission row's `Commission - Original Contract Calculation` and `Commission - Addendum Calculation` evaluate to 0 automatically. No manual cleanup needed — the formulas already gate on this.
+- **Addendum declined** (`Addendum.Status = Declined`): same — addendum calc gates to 0.
+- **In-period void** (mistake caught before payout): set `Status = Declined` on the offending row, optionally `Adjustment Amount = 0`, write the reason in `Reconcilation Notes`. Do not delete the row. The `Commission Total` will recompute to 0.
+- **Post-payout reversal**: create a **new** Commissions row with `Adjustment Amount = -25` (or whatever the clawback amount), `Notes` cross-references the original record ID. The original stays Approved as audit truth. This pattern is required when a Payout row already exists for the period.
+
+## People-side roll-up (how dollars become take-home)
+
+This is the chain that the commission dashboard / payroll computation reads. All fields live on `People`:
+
+```
+Commissions Earned (rollup)            ← sums Commissions.Commission Amount where Ledger Type = Earnings, Status = Approved
++ Compensation Adjustments (rollup)    ← sums Commissions.Adjustment Amount across linked Commissions rows
+= Total Compensations Earned (formula) — what the employee has earned in this dimension all-time
+
+Base Pay Paid (rollup)                  ← sums PM Base Pay payouts
++ Commission Paid (rollup)              ← sums Commissions.Total Payout Amount where Ledger Type = Payout
+= Total Compensation Paid (formula)
+
+Balance Owed (formula) = ROUND(Total Compensations Earned − Total Compensation Paid, 2)
+
+⚙️ Comp. Form: Commission Payout (formula) = ROUND(MAX(0, Balance Owed − Base Pay Per Payroll Period), 2)
+⚙️ Comp. Form: Adjustment Amount (formula) = MIN(Balance Owed − Base Pay Per Payroll Period, 0) × −1
+```
+
+`Base Pay Per Payroll Period` = `Annual Salary / 26` (rounded to 2dp), null when the employee has no salary (commission-only earners like Christine). Heidi reads `Balance Owed`, `⚙️ Comp. Form: Commission Payout`, and `⚙️ Comp. Form: Adjustment Amount` at payroll time and that is the number that gets cut.
+
+There is a known issue, documented in the overhaul plan, that the rollups currently read `Commission Amount` (the stored field) rather than `Commission Total` (the formula). Schemas have been authored to retarget but the writes are still gated on Cody approval. Until then: if the dashboard sums `Commission Total` per row and the Airtable rollup sums `Commission Amount`, the two can disagree until the maintaining automation fires. The dashboard should pick one source and document it.
+
+## "Done" — what the values should look like
+
+A correctly-populated, payable commission record on Roll Call satisfies all of these. Use this as the invariant set the calculation app verifies against.
+
+### Per-Job invariants (after Job closes)
+
+1. `Job Status` = `Open` or `Closed` (not Cancelled). `Job Cancelled?` is blank.
+2. Exactly two commission rows exist with `Job = <this job>` and `Addendum = empty`:
+   - one with `Commission Employee Role = "Sales"`, Notes starting "sales commission record for the original contract amount", Employee non-empty matching `Job.Sales Record ID[0]`.
+   - one with `Commission Employee Role = "Project Manager"`, Notes starting "project manager commission record for the Total Job amount", Employee non-empty matching `Job.Project Manager Record ID[0]`.
+3. Both rows: `Status = Approved`, `Commission Ledger Record Type = Earnings`.
+4. PM row math: `Commission Total = ROUND(Job Amount - Contract × Gross Profit % × 0.10, 2)` when `PM Gross Profit Goal Hit = TRUE`, else `0`. Independent verification: `Gross Profit % = ROUND(Gross Profit $ / Total Job Amount, 2)` and `Total Job Amount = Job Amount - Contract + Sum $ Project Addendums + Sum of Project Adjustments` — neither should double-count an accepted CO (Darrell Hacker bug, 2026-05-20).
+5. Sales row math: `Commission Total = Job Amount - Contract × 0.08` (Sales is not gated on GP goal).
+6. `Commission Amount` on each row equals `Commission Total` (after the maintaining automation has fired — there is a known lag).
+
+### Per-Addendum invariants (after Addendum accepted + Project closed)
+
+1. `Addendum.Status = Accepted`, `Addendum.Addendum Accepted Date` populated, parent `Project.Project Status = Closed`.
+2. Exactly two commission rows exist with `Addendum = <this addendum>`:
+   - Sales-role row, Notes "Sales commission for this addendum.", Employee = `Addendum.Sales Record ID[0]`.
+   - PM-role row, Notes "PM commission for this addendum.", Employee = `Addendum.Manager Record ID[0]`.
+3. Both rows: `Status = Approved`, `Commission Ledger Record Type = Earnings`, `Job` link populated to the parent Job (the script writes both).
+4. PM row math: `Commission Total = ROUND(Addendum Total × Overall Job Gross Profit % × 0.15, 2)`. No GP-goal gate on addendum PM commission in the formulas (the original-contract gate doesn't propagate).
+5. Sales row math: `Commission Total = Addendum Total × 0.08`.
+
+### Per-Christine-bonus invariants
+
+1. `Employee = Christine (recUpFxiSh6ubId8x)`, `Commission Ledger Record Type = Appointment Setter Bonus`, `Status = Approved`.
+2. `Adjustment Amount = 25.00`. `Commission Amount` is blank (this row is not in the Sales/PM formula chain — it pays through `Adjustment Amount` only).
+3. Exactly one bonus row per scheduled YCBM appointment. Phase 2 invariant: `External Trigger ID = <YCBM booking id>` and no other row shares that ID.
+4. If the appointment is cancelled in-period: `Status = Declined`, `Adjustment Amount = 0`, `Reconcilation Notes` names the cancellation. If cancelled post-payout: a sibling row exists with `Adjustment Amount = -25` and Notes referencing the original record ID.
+
+### Per-Person totals (what Heidi sees at payroll)
+
+1. `Total Compensations Earned = Commissions Earned + Compensation Adjustments` — should match the sum of `Commission Total` (or `Commission Amount`, depending on rollup source) across all Approved Earnings rows plus the sum of `Adjustment Amount` across all linked rows.
+2. `Balance Owed = ROUND(Total Compensations Earned − Total Compensation Paid, 2)` — never negative under normal conditions; a negative value means an overpayment / unrecorded earning row.
+3. `⚙️ Comp. Form: Commission Payout + (Base Pay Per Payroll Period if salaried) ≤ Balance Owed`. The `MAX(0, …)` clamp means a fully-prepaid commission-only person reads 0 here, not a negative.
+4. No phantom rows: no Commissions row where `Employee Role = "Sales"` resolves to a person whose People.Role doesn't include "Sales" (Christine is the canonical example — she should never appear as Sales).
+5. No orphan rows: every Commissions row where the linked `Job` has a non-empty `Project Manager Record ID` or `Sales Record ID` must have a non-empty `Employee` matching one of those IDs by role. The 50-record backfill on 2026-04-30 closed this gap historically; the close-status automation self-heals on Job updates going forward.
+
+## Field-ID quick reference (for the app)
+
+Commissions (`tblaAvWKZZxj0I9md`):
+- `Commission Amount` → `fld6i91L4IM1oCM7d` (stored)
+- `Commission Total` → `fldPxxxx + fldPxxxx` (formula: `Commission - Original Contract Calculation` + `Commission - Addendum Calculation`)
+- `Adjustment Amount` → `fldYbE70d4bECQHgz`
+- `Status` → `fldBTUFTuehsB7hmV` (choices: Approved, Declined)
+- `Commission Ledger Record Type` → `flddTQrXBxqKGI0F4` (choices: Payout, Earnings, PM Base Pay, Adjustment, Appointment Setter Bonus)
+- `Job` link → `fldLJnJM9Y8Tb60iC`
+- `Addendum` link → `fldQTeY4t9fadmNi6`
+- `Employee` link → People
+- `Reconcilation Notes` (typo'd) → `fldOfhHebb7dvK3wJ` (audit trail)
+
+People (`tblpbiWFo4ADVgB1I`):
+- `Commissions Earned` rollup → `fldwj0MZ9FDl9X5a6`
+- `Compensation Adjustments` rollup → `fldgKblEICa88fzF5` (reads `Commissions.Adjustment Amount` via Commissions link `fldrrqYidLw4p5MVU`)
+- `Total Sales Commission Amount` rollup, `Total PM Commissions Amount` rollup — the second is currently broken (`fieldIdInLinkedTable: null`, Tier 3 fix pending)
+- Christine: `recUpFxiSh6ubId8x` | Brandon: `recDr5t4zHFEWnZrU` | Miguel: `recUrstw9Rlaa730b` | Jefferson: `rectXcbWjwqBuKtKB`
+
+Jobs (`tblDG6YveJC0cDjGb`):
+- `Job Amount - Contract` → `fld2VrEgqXK650Nwx` (hand-editable currency — exploitable surface; see Darrell Hacker audit)
+- `Total Job Amount` formula = `Job Amount - Contract + Sum $ Project Addendums + Sum of Project Adjustments`
+- `Gross Profit %` → `fldci85VrRP5JYxyH`
+- `PM Gross Profit Goal Hit` formula = `Gross Profit % ≥ 0.55`
+- `Sales Record ID` lookup, `Project Manager Record ID` rollup
+
+Addendums (`tblv5quBoDnK5nTNu`):
+- `Addendum Total` formula = `SWITCH(CO Type, 'Change Order', Retail Amount - CO, 'Cost Plus', $ Line Item Total, 0)`
+- `Status` choices: Pending, Sent, Resend, Accepted, Declined
+
+## Known caveats the app should handle or document
+
+1. **`Commission Amount` lag.** Stored field, not formula. Use `Commission Total` if you need the always-current value; use `Commission Amount` only if you want to match Airtable's current rollup behavior.
+2. **`Job Amount - Contract` is hand-editable.** A single manual edit recomputes GP%, recomputes every linked commission, and flips `PM Gross Profit Goal Hit`. The system has no audit log for this on the API surface — only the Airtable UI cell revision history. The app should warn if `Job Amount - Contract ≠ Sum(linked Projects.Project Amount - Contract)`; that mismatch caught the Darrell Hacker bug and surfaced 12 other drift cases in the 358-job sweep on 2026-05-20.
+3. **Duplicate commission rows.** Both creation automations dedup loosely (Notes-string match for the Job script, Employee + Type + linked-record match for the Addendum script). The Job script's match on Notes string is fragile — historically created the Brandon $1,109.07 over-count across 4 jobs. The app should treat (Job/Addendum, Commission Employee Role, Ledger Type = Earnings) as the natural key and flag duplicates.
+4. **Christine "Sales" rows are always wrong.** Any row where `Employee = Christine AND Commission Employee Role = "Sales"` is a phantom (the script that created the 2026-04-30 cleanup batch was never identified). The app should refuse to count those rows toward Sales totals even if Status=Approved.
+5. **`Total PM Commissions Amount` rollup is broken.** `fieldIdInLinkedTable: null` per the overhaul plan — don't rely on it. Recompute from `Commissions` instead.
+6. **Phase 2 Christine automation is not shipped.** As of 2026-06-05 the YCBM → Commissions write is manual (Heidi/Christine via the Airtable form). The 4 gates listed in `commission-overhaul-plan.md` § Phase 2 must all clear before the Prismatic write goes live. The app shouldn't assume `External Trigger ID` is populated on bonus rows yet.
+
+## Cross-references
+
+- `~/codex-boolean/boolean-knowledge/clients/roll-call-painting/commission-overhaul-plan.md` — full architecture + open Tier 3 batch.
+- `~/codex-boolean/boolean-knowledge/clients/roll-call-painting/audits/2026-05-20-darrell-hacker-gp-commission-diagnosis.md` — the ground-truth math used to derive the rates in this spec.
+- `~/codex-boolean/boolean-knowledge/clients/roll-call-painting/audits/2026-04-30-orphaned-commissions-snapshot.json` — pre-state of the 50-record orphan backfill.
+- `~/codex-boolean/boolean-knowledge/operations/meetings/2026-04-07_roll-call-commissions-sync.md` — Jefferson + Cody + Renzi commission-system meeting that started this thread.
+- Live Airtable base: https://airtable.com/appeV4OX4oCFgltX5
