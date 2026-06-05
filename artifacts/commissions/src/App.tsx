@@ -23,6 +23,7 @@ import { ManualInputs } from "@/pages/ManualInputs";
 import { Reports } from "@/pages/Reports";
 import { Access } from "@/pages/Access";
 import { RepView } from "@/pages/RepView";
+import { StatementRoute } from "@/pages/StatementRoute";
 
 const queryClient = new QueryClient();
 
@@ -43,6 +44,7 @@ function StaffRouter() {
         <Route path="/people" component={People} />
         <Route path="/jobs" component={Jobs} />
         <Route path="/access" component={Access} />
+        <Route path="/statements/:personId" component={StatementRoute} />
         <Route component={NotFound} />
       </Switch>
     </AppLayout>

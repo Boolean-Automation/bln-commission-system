@@ -904,6 +904,166 @@ export const UpdateRepDashboardKpiConfigResponse = zod.object({
 
 
 /**
+ * Returns a human-readable statement for the authenticated rep covering the requested period. Staff callers must pass `personId`; rep callers are always scoped to the person id attached to their membership.
+ * @summary Per-period commission statement for the authenticated rep
+ */
+export const GetStatementForSelfParams = zod.object({
+  "tenantId": zod.coerce.string()
+})
+
+export const GetStatementForSelfQueryParams = zod.object({
+  "periodType": zod.enum(['monthly', 'quarterly', 'annual']),
+  "periodKey": zod.coerce.string(),
+  "personId": zod.coerce.string().optional().describe('Staff-only override. Ignored for rep users.')
+})
+
+export const GetStatementForSelfResponse = zod.object({
+  "personId": zod.string(),
+  "personName": zod.string(),
+  "period": zod.object({
+  "type": zod.enum(['monthly', 'quarterly', 'annual']),
+  "key": zod.string(),
+  "startDate": zod.string(),
+  "endDate": zod.string()
+}),
+  "summary": zod.object({
+  "totalEarned": zod.number(),
+  "byType": zod.array(zod.object({
+  "type": zod.enum(['SL', 'SM', 'PM', 'PMM', 'REF', 'MSC', 'ADJ', 'PAY', 'ARB']),
+  "total": zod.number(),
+  "count": zod.number()
+})),
+  "byState": zod.object({
+  "accrued": zod.number(),
+  "payable": zod.number(),
+  "paid": zod.number(),
+  "clawedBack": zod.number()
+}),
+  "entryCount": zod.number(),
+  "dealCount": zod.number()
+}),
+  "items": zod.array(zod.object({
+  "entryId": zod.string(),
+  "type": zod.enum(['SL', 'SM', 'PM', 'PMM', 'REF', 'MSC', 'ADJ', 'PAY', 'ARB']),
+  "amount": zod.number(),
+  "state": zod.enum(['accrued', 'payable', 'paid', 'clawed_back', 'voided', 'disputed']),
+  "ruleModuleKey": zod.string().nullable(),
+  "ruleDescription": zod.string().nullable(),
+  "source": zod.object({
+  "kind": zod.string(),
+  "id": zod.string().nullable(),
+  "label": zod.string().nullable()
+}),
+  "formula": zod.object({
+  "expression": zod.string(),
+  "inputs": zod.array(zod.object({
+  "label": zod.string(),
+  "value": zod.string()
+})),
+  "gated": zod.boolean(),
+  "gateReason": zod.string().nullable()
+}),
+  "deal": zod.union([zod.object({
+  "jobId": zod.string(),
+  "jobNumber": zod.string(),
+  "jobName": zod.string().nullable(),
+  "customer": zod.string().nullable(),
+  "totalAmount": zod.number().nullable(),
+  "gpAmount": zod.number().nullable(),
+  "gpPct": zod.number().nullable(),
+  "status": zod.string(),
+  "signedDate": zod.string().nullable(),
+  "completedDate": zod.string().nullable()
+}),zod.null()]),
+  "accruedAt": zod.string().nullable(),
+  "payableAt": zod.string().nullable(),
+  "paidAt": zod.string().nullable(),
+  "notes": zod.string().nullable()
+}))
+})
+
+
+/**
+ * Returns the statement for the named person. Admins/operators may request any person in the tenant; a rep may only request their own person id (server enforces).
+ * @summary Per-period commission statement for a specific person
+ */
+export const GetStatementForPersonParams = zod.object({
+  "tenantId": zod.coerce.string(),
+  "personId": zod.coerce.string()
+})
+
+export const GetStatementForPersonQueryParams = zod.object({
+  "periodType": zod.enum(['monthly', 'quarterly', 'annual']),
+  "periodKey": zod.coerce.string()
+})
+
+export const GetStatementForPersonResponse = zod.object({
+  "personId": zod.string(),
+  "personName": zod.string(),
+  "period": zod.object({
+  "type": zod.enum(['monthly', 'quarterly', 'annual']),
+  "key": zod.string(),
+  "startDate": zod.string(),
+  "endDate": zod.string()
+}),
+  "summary": zod.object({
+  "totalEarned": zod.number(),
+  "byType": zod.array(zod.object({
+  "type": zod.enum(['SL', 'SM', 'PM', 'PMM', 'REF', 'MSC', 'ADJ', 'PAY', 'ARB']),
+  "total": zod.number(),
+  "count": zod.number()
+})),
+  "byState": zod.object({
+  "accrued": zod.number(),
+  "payable": zod.number(),
+  "paid": zod.number(),
+  "clawedBack": zod.number()
+}),
+  "entryCount": zod.number(),
+  "dealCount": zod.number()
+}),
+  "items": zod.array(zod.object({
+  "entryId": zod.string(),
+  "type": zod.enum(['SL', 'SM', 'PM', 'PMM', 'REF', 'MSC', 'ADJ', 'PAY', 'ARB']),
+  "amount": zod.number(),
+  "state": zod.enum(['accrued', 'payable', 'paid', 'clawed_back', 'voided', 'disputed']),
+  "ruleModuleKey": zod.string().nullable(),
+  "ruleDescription": zod.string().nullable(),
+  "source": zod.object({
+  "kind": zod.string(),
+  "id": zod.string().nullable(),
+  "label": zod.string().nullable()
+}),
+  "formula": zod.object({
+  "expression": zod.string(),
+  "inputs": zod.array(zod.object({
+  "label": zod.string(),
+  "value": zod.string()
+})),
+  "gated": zod.boolean(),
+  "gateReason": zod.string().nullable()
+}),
+  "deal": zod.union([zod.object({
+  "jobId": zod.string(),
+  "jobNumber": zod.string(),
+  "jobName": zod.string().nullable(),
+  "customer": zod.string().nullable(),
+  "totalAmount": zod.number().nullable(),
+  "gpAmount": zod.number().nullable(),
+  "gpPct": zod.number().nullable(),
+  "status": zod.string(),
+  "signedDate": zod.string().nullable(),
+  "completedDate": zod.string().nullable()
+}),zod.null()]),
+  "accruedAt": zod.string().nullable(),
+  "payableAt": zod.string().nullable(),
+  "paidAt": zod.string().nullable(),
+  "notes": zod.string().nullable()
+}))
+})
+
+
+/**
  * @summary Get the tenant's Airtable schema mapping
  */
 export const GetSchemaMappingParams = zod.object({
@@ -1322,6 +1482,8 @@ export const SyncFromAirtableResponse = zod.object({
   "peopleRemoved": zod.number(),
   "jobsUpserted": zod.number(),
   "jobsRemoved": zod.number(),
+  "projectsUpserted": zod.number(),
+  "projectsRemoved": zod.number(),
   "recompute": zod.object({
   "tenantId": zod.string(),
   "entriesCreated": zod.number(),

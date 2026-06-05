@@ -20,11 +20,13 @@ import {
   ArrowDown,
   ArrowUp,
   CalendarDays,
+  FileText,
   LogOut,
   Trophy,
   Wallet,
 } from "lucide-react";
 import logoUrl from "@assets/channels4_profile_1780667990826.jpg";
+import { Statement } from "@/pages/Statement";
 
 function KpiCard({
   summary,
@@ -96,6 +98,7 @@ export function RepView() {
   const [periodKey, setPeriodKey] = useState<string>(() =>
     currentPeriodKey("monthly"),
   );
+  const [statementOpen, setStatementOpen] = useState(false);
 
   const tenant = accessibleTenants[0] ?? null;
   const tenantId = tenant?.id ?? "";
@@ -300,6 +303,27 @@ export function RepView() {
                     body="New activity will appear here once commissions are accrued."
                   />
                 )}
+
+              <div className="flex items-center justify-between border-t pt-4">
+                <div>
+                  <h2 className="text-base font-semibold">Statement</h2>
+                  <p className="text-xs text-muted-foreground">
+                    See every commission item and how it was calculated.
+                  </p>
+                </div>
+                <Button
+                  variant={statementOpen ? "secondary" : "default"}
+                  size="sm"
+                  onClick={() => setStatementOpen((v) => !v)}
+                >
+                  <FileText className="mr-2 size-4" />
+                  {statementOpen ? "Hide statement" : "View statement"}
+                </Button>
+              </div>
+
+              {statementOpen && tenantId && (
+                <Statement tenantId={tenantId} mode="self" />
+              )}
             </>
           )}
         </div>

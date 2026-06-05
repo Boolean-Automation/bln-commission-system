@@ -303,7 +303,8 @@ export function requireTenantAccess(
 /**
  * Require operator/admin access, or a rep membership for the `:tenantId` in the
  * path. Rep handlers must use `req.repPersonId` for scoping rather than any
- * caller-provided person id.
+ * caller-provided person id. When a `:personId` route param is present, the
+ * rep is admitted only when it matches their own person id.
  */
 export function requireTenantAccessOrSelfRep(
   req: Request,
@@ -325,6 +326,16 @@ export function requireTenantAccessOrSelfRep(
     (m) => m.tenantId === tenantId && m.role === "rep" && m.personId,
   );
   if (!repMembership?.personId) {
+    res.status(403).json({ error: "You do not have access" });
+    return;
+  }
+
+  // When the route has `:personId`, reps may only target themselves.
+  const requestedPersonId = req.params.personId;
+  if (
+    typeof requestedPersonId === "string" &&
+    requestedPersonId !== repMembership.personId
+  ) {
     res.status(403).json({ error: "You do not have access" });
     return;
   }

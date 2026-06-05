@@ -50,6 +50,8 @@ import type {
   GetManualInputVariablesParams,
   GetRepDashboardMeParams,
   GetSpendParams,
+  GetStatementForPersonParams,
+  GetStatementForSelfParams,
   HandleBrowserLoginCallbackParams,
   HealthStatus,
   Job,
@@ -87,6 +89,7 @@ import type {
   SchemaMappingInput,
   SetAirtableBaseInput,
   SpendPoint,
+  Statement,
   SyncResult,
   Tenant,
   UpdateTenant
@@ -3140,6 +3143,191 @@ export const useUpdateRepDashboardKpiConfig = <TError = ErrorType<BadRequestResp
       > => {
       return useMutation(getUpdateRepDashboardKpiConfigMutationOptions(options));
     }
+
+export const getGetStatementForSelfUrl = (tenantId: string,
+    params: GetStatementForSelfParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/tenants/${tenantId}/statements/me?${stringifiedParams}` : `/api/tenants/${tenantId}/statements/me`
+}
+
+/**
+ * Returns a human-readable statement for the authenticated rep covering the requested period. Staff callers must pass `personId`; rep callers are always scoped to the person id attached to their membership.
+ * @summary Per-period commission statement for the authenticated rep
+ */
+export const getStatementForSelf = async (tenantId: string,
+    params: GetStatementForSelfParams, options?: RequestInit): Promise<Statement> => {
+
+  return customFetch<Statement>(getGetStatementForSelfUrl(tenantId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetStatementForSelfQueryKey = (tenantId: string,
+    params?: GetStatementForSelfParams,) => {
+    return [
+    `/api/tenants/${tenantId}/statements/me`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetStatementForSelfQueryOptions = <TData = Awaited<ReturnType<typeof getStatementForSelf>>, TError = ErrorType<BadRequestResponse | ForbiddenResponse | NotFoundResponse>>(tenantId: string,
+    params: GetStatementForSelfParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStatementForSelf>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetStatementForSelfQueryKey(tenantId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getStatementForSelf>>> = ({ signal }) => getStatementForSelf(tenantId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(tenantId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getStatementForSelf>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetStatementForSelfQueryResult = NonNullable<Awaited<ReturnType<typeof getStatementForSelf>>>
+export type GetStatementForSelfQueryError = ErrorType<BadRequestResponse | ForbiddenResponse | NotFoundResponse>
+
+
+/**
+ * @summary Per-period commission statement for the authenticated rep
+ */
+
+export function useGetStatementForSelf<TData = Awaited<ReturnType<typeof getStatementForSelf>>, TError = ErrorType<BadRequestResponse | ForbiddenResponse | NotFoundResponse>>(
+ tenantId: string,
+    params: GetStatementForSelfParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStatementForSelf>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetStatementForSelfQueryOptions(tenantId,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetStatementForPersonUrl = (tenantId: string,
+    personId: string,
+    params: GetStatementForPersonParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/tenants/${tenantId}/statements/${personId}?${stringifiedParams}` : `/api/tenants/${tenantId}/statements/${personId}`
+}
+
+/**
+ * Returns the statement for the named person. Admins/operators may request any person in the tenant; a rep may only request their own person id (server enforces).
+ * @summary Per-period commission statement for a specific person
+ */
+export const getStatementForPerson = async (tenantId: string,
+    personId: string,
+    params: GetStatementForPersonParams, options?: RequestInit): Promise<Statement> => {
+
+  return customFetch<Statement>(getGetStatementForPersonUrl(tenantId,personId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetStatementForPersonQueryKey = (tenantId: string,
+    personId: string,
+    params?: GetStatementForPersonParams,) => {
+    return [
+    `/api/tenants/${tenantId}/statements/${personId}`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetStatementForPersonQueryOptions = <TData = Awaited<ReturnType<typeof getStatementForPerson>>, TError = ErrorType<BadRequestResponse | ForbiddenResponse | NotFoundResponse>>(tenantId: string,
+    personId: string,
+    params: GetStatementForPersonParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStatementForPerson>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetStatementForPersonQueryKey(tenantId,personId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getStatementForPerson>>> = ({ signal }) => getStatementForPerson(tenantId,personId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(tenantId && personId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getStatementForPerson>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetStatementForPersonQueryResult = NonNullable<Awaited<ReturnType<typeof getStatementForPerson>>>
+export type GetStatementForPersonQueryError = ErrorType<BadRequestResponse | ForbiddenResponse | NotFoundResponse>
+
+
+/**
+ * @summary Per-period commission statement for a specific person
+ */
+
+export function useGetStatementForPerson<TData = Awaited<ReturnType<typeof getStatementForPerson>>, TError = ErrorType<BadRequestResponse | ForbiddenResponse | NotFoundResponse>>(
+ tenantId: string,
+    personId: string,
+    params: GetStatementForPersonParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStatementForPerson>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetStatementForPersonQueryOptions(tenantId,personId,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
 
 export const getGetSchemaMappingUrl = (tenantId: string,) => {
 

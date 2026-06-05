@@ -13,6 +13,8 @@ export interface SyncResult {
   peopleRemoved: number;
   jobsUpserted: number;
   jobsRemoved: number;
+  projectsUpserted: number;
+  projectsRemoved: number;
   recompute: RecomputeResult;
   ranAt: string;
 }

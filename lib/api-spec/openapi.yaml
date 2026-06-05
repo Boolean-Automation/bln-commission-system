@@ -30,6 +30,8 @@ tags:
     description: Reporting & analytics — leaderboard, breakdowns, spend, custom
   - name: rep-dashboard
     description: Sales-rep personal dashboard and display configuration
+  - name: statements
+    description: Per-period rep statements with human-readable formula breakdowns
   - name: Auth
     description: Browser and mobile authentication endpoints.
   - name: access
@@ -902,6 +904,87 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "403":
           $ref: "#/components/responses/Forbidden"
+
+  /tenants/{tenantId}/statements/me:
+    get:
+      operationId: getStatementForSelf
+      tags: [statements]
+      summary: Per-period commission statement for the authenticated rep
+      description: >-
+        Returns a human-readable statement for the authenticated rep covering
+        the requested period. Staff callers must pass `personId`; rep callers
+        are always scoped to the person id attached to their membership.
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+        - name: periodType
+          in: query
+          required: true
+          schema:
+            $ref: "#/components/schemas/PeriodType"
+        - name: periodKey
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: personId
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Staff-only override. Ignored for rep users.
+      responses:
+        "200":
+          description: Statement
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Statement"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /tenants/{tenantId}/statements/{personId}:
+    get:
+      operationId: getStatementForPerson
+      tags: [statements]
+      summary: Per-period commission statement for a specific person
+      description: >-
+        Returns the statement for the named person. Admins/operators may
+        request any person in the tenant; a rep may only request their own
+        person id (server enforces).
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+        - name: personId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: periodType
+          in: query
+          required: true
+          schema:
+            $ref: "#/components/schemas/PeriodType"
+        - name: periodKey
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Statement
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Statement"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
   /tenants/{tenantId}/schema-mapping:
     get:
@@ -1902,6 +1985,177 @@ components:
           items:
             $ref: "#/components/schemas/KpiKey"
 
+    FormulaInput:
+      type: object
+      required: [label, value]
+      properties:
+        label:
+          type: string
+        value:
+          type: string
+
+    FormulaBreakdown:
+      type: object
+      required: [expression, inputs, gated, gateReason]
+      properties:
+        expression:
+          type: string
+        inputs:
+          type: array
+          items:
+            $ref: "#/components/schemas/FormulaInput"
+        gated:
+          type: boolean
+        gateReason:
+          type: ["string", "null"]
+
+    StatementDeal:
+      type: object
+      required: [jobId, jobNumber, jobName, customer, totalAmount, gpAmount, gpPct, status, signedDate, completedDate]
+      properties:
+        jobId:
+          type: string
+        jobNumber:
+          type: string
+        jobName:
+          type: ["string", "null"]
+        customer:
+          type: ["string", "null"]
+        totalAmount:
+          type: ["number", "null"]
+        gpAmount:
+          type: ["number", "null"]
+        gpPct:
+          type: ["number", "null"]
+        status:
+          type: string
+        signedDate:
+          type: ["string", "null"]
+        completedDate:
+          type: ["string", "null"]
+
+    StatementItem:
+      type: object
+      required:
+        - entryId
+        - type
+        - amount
+        - state
+        - ruleModuleKey
+        - ruleDescription
+        - source
+        - formula
+        - deal
+        - accruedAt
+        - payableAt
+        - paidAt
+        - notes
+      properties:
+        entryId:
+          type: string
+        type:
+          $ref: "#/components/schemas/CommissionType"
+        amount:
+          type: number
+        state:
+          $ref: "#/components/schemas/CommissionState"
+        ruleModuleKey:
+          type: ["string", "null"]
+        ruleDescription:
+          type: ["string", "null"]
+        source:
+          type: object
+          required: [kind, id, label]
+          properties:
+            kind:
+              type: string
+            id:
+              type: ["string", "null"]
+            label:
+              type: ["string", "null"]
+        formula:
+          $ref: "#/components/schemas/FormulaBreakdown"
+        deal:
+          oneOf:
+            - $ref: "#/components/schemas/StatementDeal"
+            - type: "null"
+        accruedAt:
+          type: ["string", "null"]
+        payableAt:
+          type: ["string", "null"]
+        paidAt:
+          type: ["string", "null"]
+        notes:
+          type: ["string", "null"]
+
+    StatementByTypeRow:
+      type: object
+      required: [type, total, count]
+      properties:
+        type:
+          $ref: "#/components/schemas/CommissionType"
+        total:
+          type: number
+        count:
+          type: integer
+
+    StatementByStateTotals:
+      type: object
+      required: [accrued, payable, paid, clawedBack]
+      properties:
+        accrued:
+          type: number
+        payable:
+          type: number
+        paid:
+          type: number
+        clawedBack:
+          type: number
+
+    StatementSummary:
+      type: object
+      required: [totalEarned, byType, byState, entryCount, dealCount]
+      properties:
+        totalEarned:
+          type: number
+        byType:
+          type: array
+          items:
+            $ref: "#/components/schemas/StatementByTypeRow"
+        byState:
+          $ref: "#/components/schemas/StatementByStateTotals"
+        entryCount:
+          type: integer
+        dealCount:
+          type: integer
+
+    Statement:
+      type: object
+      required: [personId, personName, period, summary, items]
+      properties:
+        personId:
+          type: string
+        personName:
+          type: string
+        period:
+          type: object
+          required: [type, key, startDate, endDate]
+          properties:
+            type:
+              $ref: "#/components/schemas/PeriodType"
+            key:
+              type: string
+            startDate:
+              type: string
+            endDate:
+              type: string
+        summary:
+          $ref: "#/components/schemas/StatementSummary"
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/StatementItem"
+
     BreakdownRow:
       type: object
       required: [bucket, personCount, quotaTotal, earnedTotal]
@@ -2789,7 +3043,18 @@ components:
 
     SyncResult:
       type: object
-      required: [tenantId, peopleUpserted, peopleRemoved, jobsUpserted, jobsRemoved, recompute, ranAt]
+      required:
+        [
+          tenantId,
+          peopleUpserted,
+          peopleRemoved,
+          jobsUpserted,
+          jobsRemoved,
+          projectsUpserted,
+          projectsRemoved,
+          recompute,
+          ranAt,
+        ]
       properties:
         tenantId:
           type: string
@@ -2800,6 +3065,10 @@ components:
         jobsUpserted:
           type: integer
         jobsRemoved:
+          type: integer
+        projectsUpserted:
+          type: integer
+        projectsRemoved:
           type: integer
         recompute:
           $ref: "#/components/schemas/RecomputeResult"

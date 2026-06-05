@@ -368,6 +368,132 @@ export interface RepDashboardKpiConfigInput {
   enabledKpis: KpiKey[];
 }
 
+export interface FormulaInput {
+  label: string;
+  value: string;
+}
+
+export interface FormulaBreakdown {
+  expression: string;
+  inputs: FormulaInput[];
+  gated: boolean;
+  /** @nullable */
+  gateReason: string | null;
+}
+
+export interface StatementDeal {
+  jobId: string;
+  jobNumber: string;
+  /** @nullable */
+  jobName: string | null;
+  /** @nullable */
+  customer: string | null;
+  /** @nullable */
+  totalAmount: number | null;
+  /** @nullable */
+  gpAmount: number | null;
+  /** @nullable */
+  gpPct: number | null;
+  status: string;
+  /** @nullable */
+  signedDate: string | null;
+  /** @nullable */
+  completedDate: string | null;
+}
+
+export type StatementItemSource = {
+  kind: string;
+  /** @nullable */
+  id: string | null;
+  /** @nullable */
+  label: string | null;
+};
+
+export type CommissionType = typeof CommissionType[keyof typeof CommissionType];
+
+
+export const CommissionType = {
+  SL: 'SL',
+  SM: 'SM',
+  PM: 'PM',
+  PMM: 'PMM',
+  REF: 'REF',
+  MSC: 'MSC',
+  ADJ: 'ADJ',
+  PAY: 'PAY',
+  ARB: 'ARB',
+} as const;
+
+export type CommissionState = typeof CommissionState[keyof typeof CommissionState];
+
+
+export const CommissionState = {
+  accrued: 'accrued',
+  payable: 'payable',
+  paid: 'paid',
+  clawed_back: 'clawed_back',
+  voided: 'voided',
+  disputed: 'disputed',
+} as const;
+
+export interface StatementItem {
+  entryId: string;
+  type: CommissionType;
+  amount: number;
+  state: CommissionState;
+  /** @nullable */
+  ruleModuleKey: string | null;
+  /** @nullable */
+  ruleDescription: string | null;
+  source: StatementItemSource;
+  formula: FormulaBreakdown;
+  deal: StatementDeal | null;
+  /** @nullable */
+  accruedAt: string | null;
+  /** @nullable */
+  payableAt: string | null;
+  /** @nullable */
+  paidAt: string | null;
+  /** @nullable */
+  notes: string | null;
+}
+
+export interface StatementByTypeRow {
+  type: CommissionType;
+  total: number;
+  count: number;
+}
+
+export interface StatementByStateTotals {
+  accrued: number;
+  payable: number;
+  paid: number;
+  clawedBack: number;
+}
+
+export interface StatementSummary {
+  totalEarned: number;
+  byType: StatementByTypeRow[];
+  byState: StatementByStateTotals;
+  entryCount: number;
+  dealCount: number;
+}
+
+export type StatementPeriod = {
+  type: PeriodType;
+  key: string;
+  startDate: string;
+  endDate: string;
+};
+
+export interface Statement {
+  personId: string;
+  personName: string;
+  period: StatementPeriod;
+  summary: StatementSummary;
+  items: StatementItem[];
+}
+
 export interface BreakdownRow {
   bucket: string;
   personCount: number;
@@ -450,33 +576,6 @@ export interface ManualInputEvent {
   actor: string;
   at: string;
 }
-
-export type CommissionState = typeof CommissionState[keyof typeof CommissionState];
-
-
-export const CommissionState = {
-  accrued: 'accrued',
-  payable: 'payable',
-  paid: 'paid',
-  clawed_back: 'clawed_back',
-  voided: 'voided',
-  disputed: 'disputed',
-} as const;
-
-export type CommissionType = typeof CommissionType[keyof typeof CommissionType];
-
-
-export const CommissionType = {
-  SL: 'SL',
-  SM: 'SM',
-  PM: 'PM',
-  PMM: 'PMM',
-  REF: 'REF',
-  MSC: 'MSC',
-  ADJ: 'ADJ',
-  PAY: 'PAY',
-  ARB: 'ARB',
-} as const;
 
 export type EntityKind = typeof EntityKind[keyof typeof EntityKind];
 
@@ -1005,6 +1104,8 @@ export interface SyncResult {
   peopleRemoved: number;
   jobsUpserted: number;
   jobsRemoved: number;
+  projectsUpserted: number;
+  projectsRemoved: number;
   recompute: RecomputeResult;
   ranAt: string;
 }
@@ -1087,6 +1188,20 @@ periodKey: string;
  * Staff-only override. Ignored for rep users.
  */
 personId?: string;
+};
+
+export type GetStatementForSelfParams = {
+periodType: PeriodType;
+periodKey: string;
+/**
+ * Staff-only override. Ignored for rep users.
+ */
+personId?: string;
+};
+
+export type GetStatementForPersonParams = {
+periodType: PeriodType;
+periodKey: string;
 };
 
 export type ListCommissionsParams = {

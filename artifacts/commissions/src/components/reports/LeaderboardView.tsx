@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { Link } from "wouter";
 import {
   useGetLeaderboard,
   type LeaderboardRow,
@@ -6,6 +7,7 @@ import {
 } from "@workspace/api-client-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -15,6 +17,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
+import { FileText } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 import { currentPeriodKey } from "@/lib/periods";
 import { PeriodPicker } from "./PeriodPicker";
@@ -85,13 +88,14 @@ export function LeaderboardView({ tenantId }: Props) {
               <TableHead className="text-right">Attainment</TableHead>
               <TableHead className="text-right">Δ to Quota</TableHead>
               <TableHead>State</TableHead>
+              <TableHead className="w-12" />
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               Array.from({ length: 6 }).map((_, i) => (
                 <TableRow key={i}>
-                  {Array.from({ length: 10 }).map((_, j) => (
+                  {Array.from({ length: 11 }).map((_, j) => (
                     <TableCell key={j}>
                       <Skeleton className="h-4 w-full" />
                     </TableCell>
@@ -101,7 +105,7 @@ export function LeaderboardView({ tenantId }: Props) {
             ) : ranked.length + unranked.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={10}
+                  colSpan={11}
                   className="h-32 text-center text-muted-foreground"
                 >
                   No active people in this tenant.
@@ -116,7 +120,7 @@ export function LeaderboardView({ tenantId }: Props) {
                   <>
                     <TableRow className="bg-muted/40">
                       <TableCell
-                        colSpan={10}
+                        colSpan={11}
                         className="py-2 text-xs font-medium text-muted-foreground"
                       >
                         Reps without a quota for this period
@@ -165,6 +169,14 @@ function LeaderboardRowView({ row }: { row: LeaderboardRow }) {
       </TableCell>
       <TableCell>
         <Badge variant={badge.variant}>{badge.label}</Badge>
+      </TableCell>
+      <TableCell className="text-right">
+        <Button asChild variant="ghost" size="sm" className="h-8 gap-1">
+          <Link href={`/statements/${row.personId}`}>
+            <FileText className="size-3.5" />
+            <span className="sr-only sm:not-sr-only">Statement</span>
+          </Link>
+        </Button>
       </TableCell>
     </TableRow>
   );
