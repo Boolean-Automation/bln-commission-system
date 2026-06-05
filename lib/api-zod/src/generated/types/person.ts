@@ -16,6 +16,12 @@ export interface Person {
   /** @nullable */
   position?: string | null;
   /** @nullable */
+  region?: string | null;
+  /** @nullable */
+  cohort?: string | null;
+  /** @nullable */
+  team?: string | null;
+  /** @nullable */
   email?: string | null;
   /** @nullable */
   company?: string | null;

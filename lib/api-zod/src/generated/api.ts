@@ -548,6 +548,9 @@ export const ListPeopleResponseItem = zod.object({
   "name": zod.string(),
   "roles": zod.array(zod.string()),
   "position": zod.string().nullish(),
+  "region": zod.string().nullish(),
+  "cohort": zod.string().nullish(),
+  "team": zod.string().nullish(),
   "email": zod.string().nullish(),
   "company": zod.string().nullish(),
   "ytdSales": zod.number().nullish(),
@@ -712,6 +715,192 @@ export const GetManualInputVariablesResponseItem = zod.object({
   "acceleratorMultiplier": zod.number().nullish()
 })
 export const GetManualInputVariablesResponse = zod.array(GetManualInputVariablesResponseItem)
+
+
+/**
+ * Ranks reps by attainment vs quota for the chosen period. Numerator is the sum of commission entries credited via `accruedAt` within the period's effective range; denominator is the rep's quota from `manual_inputs`. Reps without a quota row are returned with `state="no_quota"` and excluded from ranking.
+ * @summary Rep performance leaderboard for a period
+ */
+export const GetLeaderboardParams = zod.object({
+  "tenantId": zod.coerce.string()
+})
+
+export const GetLeaderboardQueryParams = zod.object({
+  "periodType": zod.enum(['monthly', 'quarterly', 'annual']),
+  "periodKey": zod.coerce.string()
+})
+
+export const GetLeaderboardResponseItem = zod.object({
+  "rank": zod.number().nullish(),
+  "personId": zod.string(),
+  "personName": zod.string(),
+  "position": zod.string().nullish(),
+  "region": zod.string().nullish(),
+  "cohort": zod.string().nullish(),
+  "team": zod.string().nullish(),
+  "quota": zod.number().nullish(),
+  "ote": zod.number().nullish(),
+  "earnedInPeriod": zod.number(),
+  "attainmentPct": zod.number().nullish(),
+  "deltaToQuota": zod.number().nullish(),
+  "state": zod.enum(['over', 'on_track', 'under', 'no_quota'])
+})
+export const GetLeaderboardResponse = zod.array(GetLeaderboardResponseItem)
+
+
+/**
+ * Groups reps by the chosen dimension and aggregates commission (accrual-dated) plus quota for the period. Null attribute values bucket into "Unassigned".
+ * @summary Performance broken down by a people attribute
+ */
+export const GetBreakdownParams = zod.object({
+  "tenantId": zod.coerce.string()
+})
+
+export const GetBreakdownQueryParams = zod.object({
+  "dimension": zod.enum(['region', 'cohort', 'team', 'position']),
+  "periodType": zod.enum(['monthly', 'quarterly', 'annual']),
+  "periodKey": zod.coerce.string()
+})
+
+export const GetBreakdownResponseItem = zod.object({
+  "bucket": zod.string(),
+  "personCount": zod.number(),
+  "quotaTotal": zod.number(),
+  "earnedTotal": zod.number(),
+  "attainmentPct": zod.number().nullish()
+})
+export const GetBreakdownResponse = zod.array(GetBreakdownResponseItem)
+
+
+/**
+ * Returns the commission liability composition (accrued / payable / paid / clawed-back / total) grouped by period, team, or person, dated by `paidAt` falling back to `payableAt` then `accruedAt`. Use to forecast cash and audit spend by cohort.
+ * @summary Commission spend / liability over time
+ */
+export const GetSpendParams = zod.object({
+  "tenantId": zod.coerce.string()
+})
+
+export const GetSpendQueryParams = zod.object({
+  "groupBy": zod.enum(['period', 'team', 'person']),
+  "periodType": zod.enum(['monthly', 'quarterly', 'annual']).optional(),
+  "from": zod.coerce.string().optional(),
+  "to": zod.coerce.string().optional()
+})
+
+export const GetSpendResponseItem = zod.object({
+  "bucket": zod.string().describe('Period key, team, or person depending on `groupBy`'),
+  "accruedAmount": zod.number(),
+  "payableAmount": zod.number(),
+  "paidAmount": zod.number(),
+  "clawedBackAmount": zod.number(),
+  "totalLiability": zod.number()
+})
+export const GetSpendResponse = zod.array(GetSpendResponseItem)
+
+
+/**
+ * Runs a tabular report with the dimensions and metrics selected by an admin. Result is capped server-side; the `truncated` flag indicates whether the cap was hit. Admin-only — operators of the tenant or platform staff.
+ * @summary Ad-hoc report from chosen dimensions + metrics
+ */
+export const RunCustomReportParams = zod.object({
+  "tenantId": zod.coerce.string()
+})
+
+export const RunCustomReportBody = zod.object({
+  "name": zod.string().nullish().describe('Optional name reserved for future \"save as report\" flow'),
+  "dimensions": zod.array(zod.enum(['person', 'region', 'cohort', 'team', 'position', 'period', 'entryType', 'state'])),
+  "metrics": zod.array(zod.enum(['commissionTotal', 'entryCount', 'quotaAttainmentPct', 'paidAmount', 'accruedAmount', 'payableAmount', 'clawedBackAmount', 'spendAmount'])),
+  "periodType": zod.enum(['monthly', 'quarterly', 'annual']).optional(),
+  "periodKey": zod.string().nullish(),
+  "from": zod.string().nullish(),
+  "to": zod.string().nullish()
+})
+
+export const RunCustomReportResponse = zod.object({
+  "columns": zod.array(zod.object({
+  "key": zod.string(),
+  "label": zod.string(),
+  "kind": zod.enum(['dimension', 'metric'])
+})),
+  "rows": zod.array(zod.record(zod.string(), zod.unknown())),
+  "truncated": zod.boolean(),
+  "rowCount": zod.number().optional()
+})
+
+
+/**
+ * Returns a read-only dashboard summary for the authenticated rep. Staff users may pass `personId`; rep users are always scoped to the person id attached to their authenticated membership.
+ * @summary Current rep dashboard summary for a period
+ */
+export const GetRepDashboardMeParams = zod.object({
+  "tenantId": zod.coerce.string()
+})
+
+export const GetRepDashboardMeQueryParams = zod.object({
+  "periodType": zod.enum(['monthly', 'quarterly', 'annual']),
+  "periodKey": zod.coerce.string(),
+  "personId": zod.coerce.string().optional().describe('Staff-only override. Ignored for rep users.')
+})
+
+export const GetRepDashboardMeResponse = zod.object({
+  "personId": zod.string(),
+  "personName": zod.string(),
+  "period": zod.object({
+  "type": zod.enum(['monthly', 'quarterly', 'annual']),
+  "key": zod.string()
+}),
+  "commissionByState": zod.object({
+  "accrued": zod.number(),
+  "payable": zod.number(),
+  "paid": zod.number(),
+  "clawedBack": zod.number()
+}),
+  "quota": zod.number().nullable(),
+  "ote": zod.number().nullable(),
+  "earnedInPeriod": zod.number(),
+  "attainmentPct": zod.number().nullable(),
+  "deltaToQuota": zod.number().nullable(),
+  "rank": zod.number().nullable(),
+  "peerCount": zod.number(),
+  "state": zod.enum(['over', 'on_track', 'under', 'no_quota']),
+  "projection": zod.object({
+  "projectedEarning": zod.number(),
+  "paceVsQuota": zod.number().nullable(),
+  "daysElapsed": zod.number(),
+  "daysRemaining": zod.number()
+}),
+  "enabledKpis": zod.array(zod.enum(['earnedInPeriod', 'attainmentPct', 'rank', 'projectedEarning', 'quota', 'ote', 'accrued', 'payable', 'paid', 'deltaToQuota']))
+})
+
+
+/**
+ * @summary Get configured KPI cards for rep dashboards
+ */
+export const GetRepDashboardKpiConfigParams = zod.object({
+  "tenantId": zod.coerce.string()
+})
+
+export const GetRepDashboardKpiConfigResponse = zod.object({
+  "enabledKpis": zod.array(zod.enum(['earnedInPeriod', 'attainmentPct', 'rank', 'projectedEarning', 'quota', 'ote', 'accrued', 'payable', 'paid', 'deltaToQuota'])),
+  "updatedAt": zod.string().nullable()
+})
+
+
+/**
+ * @summary Update configured KPI cards for rep dashboards
+ */
+export const UpdateRepDashboardKpiConfigParams = zod.object({
+  "tenantId": zod.coerce.string()
+})
+
+export const UpdateRepDashboardKpiConfigBody = zod.object({
+  "enabledKpis": zod.array(zod.enum(['earnedInPeriod', 'attainmentPct', 'rank', 'projectedEarning', 'quota', 'ote', 'accrued', 'payable', 'paid', 'deltaToQuota']))
+})
+
+export const UpdateRepDashboardKpiConfigResponse = zod.object({
+  "enabledKpis": zod.array(zod.enum(['earnedInPeriod', 'attainmentPct', 'rank', 'projectedEarning', 'quota', 'ote', 'accrued', 'payable', 'paid', 'deltaToQuota'])),
+  "updatedAt": zod.string().nullable()
+})
 
 
 /**

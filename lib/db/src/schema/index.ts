@@ -10,3 +10,4 @@ export * from "./ruleInstances";
 export * from "./commissionEntries";
 export * from "./commissionEvents";
 export * from "./manualInputs";
+export * from "./repDashboardConfig";

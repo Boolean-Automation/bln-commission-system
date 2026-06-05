@@ -1,18 +1,35 @@
 import React, { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useTenant } from "@/contexts/TenantContext";
-import { useGetDashboard, useGetActivity, getGetDashboardQueryKey } from "@workspace/api-client-react";
+import { useAuthContext } from "@/contexts/AuthContext";
+import {
+  useGetDashboard,
+  useGetActivity,
+  getGetDashboardQueryKey,
+  useGetRepDashboardKpiConfig,
+  useUpdateRepDashboardKpiConfig,
+  getGetRepDashboardKpiConfigQueryKey,
+  type KpiKey,
+} from "@workspace/api-client-react";
 import { formatCurrency, formatDateTime } from "@/lib/format";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowRightLeft, DollarSign, Wallet, FileText, Activity, AlertCircle, Database, ListChecks, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import { OnboardingWizard } from "@/components/onboarding/OnboardingWizard";
 import { getSetupStep, hasNoSyncedData, setupStepLabel } from "@/lib/setupStatus";
+import { REP_KPI_KEYS, repKpiCatalog } from "@/lib/repKpiCatalog";
+import { useToast } from "@/hooks/use-toast";
 
 export function Dashboard() {
   const { activeTenantId, activeTenant } = useTenant();
+  const { effectiveRole, isOperator } = useAuthContext();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
   const [wizardOpen, setWizardOpen] = useState(false);
+  const canConfigureRepKpis = isOperator || effectiveRole === "admin";
   
   const { data: dashboard, isLoading: isLoadingDashboard } = useGetDashboard(activeTenantId!, {
     query: {
@@ -27,6 +44,54 @@ export function Dashboard() {
       queryKey: activeTenantId ? ["activity", activeTenantId] : ["activity", "empty"]
     }
   });
+
+  const { data: repKpiConfig } = useGetRepDashboardKpiConfig(activeTenantId!, {
+    query: {
+      enabled: !!activeTenantId && canConfigureRepKpis,
+      queryKey: activeTenantId
+        ? getGetRepDashboardKpiConfigQueryKey(activeTenantId)
+        : ["rep-dashboard-kpi-config", "empty"],
+    },
+  });
+
+  const updateRepKpis = useUpdateRepDashboardKpiConfig({
+    mutation: {
+      onSuccess: async () => {
+        if (activeTenantId) {
+          await queryClient.invalidateQueries({
+            queryKey: getGetRepDashboardKpiConfigQueryKey(activeTenantId),
+          });
+        }
+        toast({ title: "Rep dashboard KPIs updated" });
+      },
+      onError: () => {
+        toast({
+          title: "Failed to update rep dashboard KPIs",
+          description: "Please try again.",
+        });
+      },
+    },
+  });
+
+  const selectedRepKpis =
+    repKpiConfig?.enabledKpis ?? ([
+      "earnedInPeriod",
+      "attainmentPct",
+      "rank",
+      "projectedEarning",
+    ] satisfies KpiKey[]);
+
+  function toggleRepKpi(key: KpiKey, checked: boolean | "indeterminate") {
+    if (!activeTenantId || checked === "indeterminate") return;
+    const next = checked
+      ? [...selectedRepKpis, key]
+      : selectedRepKpis.filter((k) => k !== key);
+    const deduped = REP_KPI_KEYS.filter((k) => next.includes(k));
+    updateRepKpis.mutate({
+      tenantId: activeTenantId,
+      data: { enabledKpis: deduped },
+    });
+  }
 
   if (!activeTenantId) {
     return (
@@ -255,6 +320,38 @@ export function Dashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {canConfigureRepKpis && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Rep Dashboard KPIs</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {REP_KPI_KEYS.map((key) => {
+                const item = repKpiCatalog[key];
+                const Icon = item.Icon;
+                return (
+                  <label
+                    key={key}
+                    className="flex min-h-12 cursor-pointer items-center gap-3 rounded-md border p-3 text-sm"
+                  >
+                    <Checkbox
+                      checked={selectedRepKpis.includes(key)}
+                      disabled={updateRepKpis.isPending}
+                      onCheckedChange={(checked) =>
+                        toggleRepKpi(key, checked)
+                      }
+                    />
+                    <Icon className="size-4 text-muted-foreground" />
+                    <span className="font-medium">{item.label}</span>
+                  </label>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <OnboardingWizard
         open={wizardOpen}

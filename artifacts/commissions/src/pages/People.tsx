@@ -69,6 +69,9 @@ export function People() {
                 <TableHead>Name</TableHead>
                 <TableHead>Roles</TableHead>
                 <TableHead>Position</TableHead>
+                <TableHead>Region</TableHead>
+                <TableHead>Cohort</TableHead>
+                <TableHead>Team</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Start Date</TableHead>
                 <TableHead className="text-right">YTD Sales</TableHead>
@@ -81,6 +84,9 @@ export function People() {
                     <TableCell><div className="h-4 w-32 bg-muted animate-pulse rounded" /></TableCell>
                     <TableCell><div className="h-5 w-20 bg-muted animate-pulse rounded-full" /></TableCell>
                     <TableCell><div className="h-4 w-24 bg-muted animate-pulse rounded" /></TableCell>
+                    <TableCell><div className="h-4 w-20 bg-muted animate-pulse rounded" /></TableCell>
+                    <TableCell><div className="h-4 w-20 bg-muted animate-pulse rounded" /></TableCell>
+                    <TableCell><div className="h-4 w-20 bg-muted animate-pulse rounded" /></TableCell>
                     <TableCell><div className="h-5 w-16 bg-muted animate-pulse rounded-full" /></TableCell>
                     <TableCell><div className="h-4 w-24 bg-muted animate-pulse rounded" /></TableCell>
                     <TableCell><div className="h-4 w-20 bg-muted animate-pulse rounded ml-auto" /></TableCell>
@@ -90,7 +96,7 @@ export function People() {
                 groups.map((group) => (
                   <React.Fragment key={group.key}>
                     <TableRow className="bg-muted/60 hover:bg-muted/60 border-t">
-                      <TableCell colSpan={6} className="py-2">
+                      <TableCell colSpan={9} className="py-2">
                         <div className="flex items-center gap-2">
                           <span className="font-semibold text-sm">{group.label}</span>
                           <Badge variant="secondary" className="text-xs">{group.people.length}</Badge>
@@ -108,6 +114,9 @@ export function People() {
                           </div>
                         </TableCell>
                         <TableCell className="text-muted-foreground">{person.position || "-"}</TableCell>
+                        <TableCell className="text-muted-foreground">{person.region || "-"}</TableCell>
+                        <TableCell className="text-muted-foreground">{person.cohort || "-"}</TableCell>
+                        <TableCell className="text-muted-foreground">{person.team || "-"}</TableCell>
                         <TableCell>
                           {person.active ? (
                             <div className="flex items-center text-sm text-emerald-600 gap-1">
@@ -127,7 +136,7 @@ export function People() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
+                  <TableCell colSpan={9} className="h-32 text-center text-muted-foreground">
                     No people records found.
                   </TableCell>
                 </TableRow>

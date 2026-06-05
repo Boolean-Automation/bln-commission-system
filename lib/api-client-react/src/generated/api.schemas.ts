@@ -218,6 +218,215 @@ export interface ManualInputVariables {
   acceleratorMultiplier?: number | null;
 }
 
+export type BreakdownDimension = typeof BreakdownDimension[keyof typeof BreakdownDimension];
+
+
+export const BreakdownDimension = {
+  region: 'region',
+  cohort: 'cohort',
+  team: 'team',
+  position: 'position',
+} as const;
+
+export type SpendGroupBy = typeof SpendGroupBy[keyof typeof SpendGroupBy];
+
+
+export const SpendGroupBy = {
+  period: 'period',
+  team: 'team',
+  person: 'person',
+} as const;
+
+export type ReportDimension = typeof ReportDimension[keyof typeof ReportDimension];
+
+
+export const ReportDimension = {
+  person: 'person',
+  region: 'region',
+  cohort: 'cohort',
+  team: 'team',
+  position: 'position',
+  period: 'period',
+  entryType: 'entryType',
+  state: 'state',
+} as const;
+
+export type ReportMetric = typeof ReportMetric[keyof typeof ReportMetric];
+
+
+export const ReportMetric = {
+  commissionTotal: 'commissionTotal',
+  entryCount: 'entryCount',
+  quotaAttainmentPct: 'quotaAttainmentPct',
+  paidAmount: 'paidAmount',
+  accruedAmount: 'accruedAmount',
+  payableAmount: 'payableAmount',
+  clawedBackAmount: 'clawedBackAmount',
+  spendAmount: 'spendAmount',
+} as const;
+
+export type LeaderboardState = typeof LeaderboardState[keyof typeof LeaderboardState];
+
+
+export const LeaderboardState = {
+  over: 'over',
+  on_track: 'on_track',
+  under: 'under',
+  no_quota: 'no_quota',
+} as const;
+
+export interface LeaderboardRow {
+  /** @nullable */
+  rank?: number | null;
+  personId: string;
+  personName: string;
+  /** @nullable */
+  position?: string | null;
+  /** @nullable */
+  region?: string | null;
+  /** @nullable */
+  cohort?: string | null;
+  /** @nullable */
+  team?: string | null;
+  /** @nullable */
+  quota?: number | null;
+  /** @nullable */
+  ote?: number | null;
+  earnedInPeriod: number;
+  /** @nullable */
+  attainmentPct?: number | null;
+  /** @nullable */
+  deltaToQuota?: number | null;
+  state: LeaderboardState;
+}
+
+export type KpiKey = typeof KpiKey[keyof typeof KpiKey];
+
+
+export const KpiKey = {
+  earnedInPeriod: 'earnedInPeriod',
+  attainmentPct: 'attainmentPct',
+  rank: 'rank',
+  projectedEarning: 'projectedEarning',
+  quota: 'quota',
+  ote: 'ote',
+  accrued: 'accrued',
+  payable: 'payable',
+  paid: 'paid',
+  deltaToQuota: 'deltaToQuota',
+} as const;
+
+export interface CommissionByState {
+  accrued: number;
+  payable: number;
+  paid: number;
+  clawedBack: number;
+}
+
+export interface RepProjection {
+  projectedEarning: number;
+  /** @nullable */
+  paceVsQuota: number | null;
+  daysElapsed: number;
+  daysRemaining: number;
+}
+
+export type RepDashboardSummaryPeriod = {
+  type: PeriodType;
+  key: string;
+};
+
+export interface RepDashboardSummary {
+  personId: string;
+  personName: string;
+  period: RepDashboardSummaryPeriod;
+  commissionByState: CommissionByState;
+  /** @nullable */
+  quota: number | null;
+  /** @nullable */
+  ote: number | null;
+  earnedInPeriod: number;
+  /** @nullable */
+  attainmentPct: number | null;
+  /** @nullable */
+  deltaToQuota: number | null;
+  /** @nullable */
+  rank: number | null;
+  peerCount: number;
+  state: LeaderboardState;
+  projection: RepProjection;
+  enabledKpis: KpiKey[];
+}
+
+export interface RepDashboardKpiConfig {
+  enabledKpis: KpiKey[];
+  /** @nullable */
+  updatedAt: string | null;
+}
+
+export interface RepDashboardKpiConfigInput {
+  enabledKpis: KpiKey[];
+}
+
+export interface BreakdownRow {
+  bucket: string;
+  personCount: number;
+  quotaTotal: number;
+  earnedTotal: number;
+  /** @nullable */
+  attainmentPct?: number | null;
+}
+
+export interface SpendPoint {
+  /** Period key, team, or person depending on `groupBy` */
+  bucket: string;
+  accruedAmount: number;
+  payableAmount: number;
+  paidAmount: number;
+  clawedBackAmount: number;
+  totalLiability: number;
+}
+
+export interface CustomReportRequest {
+  /**
+     * Optional name reserved for future "save as report" flow
+     * @nullable
+     */
+  name?: string | null;
+  dimensions: ReportDimension[];
+  metrics: ReportMetric[];
+  periodType?: PeriodType;
+  /** @nullable */
+  periodKey?: string | null;
+  /** @nullable */
+  from?: string | null;
+  /** @nullable */
+  to?: string | null;
+}
+
+export type CustomReportColumnKind = typeof CustomReportColumnKind[keyof typeof CustomReportColumnKind];
+
+
+export const CustomReportColumnKind = {
+  dimension: 'dimension',
+  metric: 'metric',
+} as const;
+
+export interface CustomReportColumn {
+  key: string;
+  label: string;
+  kind: CustomReportColumnKind;
+}
+
+export type CustomReportResultRowsItem = { [key: string]: unknown };
+
+export interface CustomReportResult {
+  columns: CustomReportColumn[];
+  rows: CustomReportResultRowsItem[];
+  truncated: boolean;
+  rowCount?: number;
+}
+
 /**
  * @nullable
  */
@@ -314,6 +523,12 @@ export interface Person {
   roles: string[];
   /** @nullable */
   position?: string | null;
+  /** @nullable */
+  region?: string | null;
+  /** @nullable */
+  cohort?: string | null;
+  /** @nullable */
+  team?: string | null;
   /** @nullable */
   email?: string | null;
   /** @nullable */
@@ -839,6 +1054,39 @@ periodKey: string;
 export type GetManualInputVariablesParams = {
 periodType: PeriodType;
 periodKey: string;
+};
+
+export type GetLeaderboardParams = {
+periodType: PeriodType;
+periodKey: string;
+};
+
+export type GetBreakdownParams = {
+dimension: BreakdownDimension;
+periodType: PeriodType;
+periodKey: string;
+};
+
+export type GetSpendParams = {
+groupBy: SpendGroupBy;
+periodType?: PeriodType;
+/**
+ * Inclusive ISO date (YYYY-MM-DD)
+ */
+from?: string;
+/**
+ * Inclusive ISO date (YYYY-MM-DD)
+ */
+to?: string;
+};
+
+export type GetRepDashboardMeParams = {
+periodType: PeriodType;
+periodKey: string;
+/**
+ * Staff-only override. Ignored for rep users.
+ */
+personId?: string;
 };
 
 export type ListCommissionsParams = {

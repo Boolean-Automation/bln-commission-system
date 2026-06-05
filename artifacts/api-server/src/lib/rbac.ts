@@ -43,6 +43,7 @@ declare global {
   namespace Express {
     interface Request {
       authContext?: AuthContextResolved;
+      repPersonId?: string;
     }
   }
 }
@@ -296,5 +297,38 @@ export function requireTenantAccess(
     res.status(403).json({ error: "You do not have access to this company" });
     return;
   }
+  next();
+}
+
+/**
+ * Require operator/admin access, or a rep membership for the `:tenantId` in the
+ * path. Rep handlers must use `req.repPersonId` for scoping rather than any
+ * caller-provided person id.
+ */
+export function requireTenantAccessOrSelfRep(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): void {
+  const tenantId = req.params.tenantId;
+  if (!req.authContext || typeof tenantId !== "string") {
+    res.status(403).json({ error: "Forbidden" });
+    return;
+  }
+
+  if (hasTenantAccess(req.authContext, tenantId)) {
+    next();
+    return;
+  }
+
+  const repMembership = req.authContext.memberships.find(
+    (m) => m.tenantId === tenantId && m.role === "rep" && m.personId,
+  );
+  if (!repMembership?.personId) {
+    res.status(403).json({ error: "You do not have access" });
+    return;
+  }
+
+  req.repPersonId = repMembership.personId;
   next();
 }

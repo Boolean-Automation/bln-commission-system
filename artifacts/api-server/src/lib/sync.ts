@@ -159,6 +159,9 @@ export async function syncTenant(tenantId: string): Promise<SyncResult> {
       name,
       roles: parseList(get("roles")),
       position: parseStr(get("position")),
+      region: parseStr(get("region")),
+      cohort: parseStr(get("cohort")),
+      team: parseStr(get("team")),
       email: parseStr(get("email")),
       company: parseStr(get("company")),
       // ytdSales is computed by the engine from non-cancelled jobs (see

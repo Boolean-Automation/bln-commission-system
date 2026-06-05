@@ -28,12 +28,15 @@ import type {
   AuthUserEnvelope,
   BadRequestResponse,
   BeginBrowserLoginParams,
+  BreakdownRow,
   CommissionAdjustment,
   CommissionEntry,
   CommissionEvent,
   CommissionPlan,
   CommissionTransition,
   CreateTenant,
+  CustomReportRequest,
+  CustomReportResult,
   DashboardSummary,
   DeleteManualInputResult,
   DeleteMembershipResult,
@@ -42,10 +45,15 @@ import type {
   ErrorEnvelope,
   ForbiddenResponse,
   GetActivityParams,
+  GetBreakdownParams,
+  GetLeaderboardParams,
   GetManualInputVariablesParams,
+  GetRepDashboardMeParams,
+  GetSpendParams,
   HandleBrowserLoginCallbackParams,
   HealthStatus,
   Job,
+  LeaderboardRow,
   ListCommissionsParams,
   ListManualInputsParams,
   ListProviders,
@@ -68,6 +76,9 @@ import type {
   RecomputeResult,
   ReconciliationReport,
   ReorderRuleInstances,
+  RepDashboardKpiConfig,
+  RepDashboardKpiConfigInput,
+  RepDashboardSummary,
   RuleInstance,
   RuleInstanceCreate,
   RuleInstanceUpdate,
@@ -75,6 +86,7 @@ import type {
   SchemaMapping,
   SchemaMappingInput,
   SetAirtableBaseInput,
+  SpendPoint,
   SyncResult,
   Tenant,
   UpdateTenant
@@ -2546,6 +2558,588 @@ export function useGetManualInputVariables<TData = Awaited<ReturnType<typeof get
 
 
 
+
+export const getGetLeaderboardUrl = (tenantId: string,
+    params: GetLeaderboardParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/tenants/${tenantId}/reports/leaderboard?${stringifiedParams}` : `/api/tenants/${tenantId}/reports/leaderboard`
+}
+
+/**
+ * Ranks reps by attainment vs quota for the chosen period. Numerator is the sum of commission entries credited via `accruedAt` within the period's effective range; denominator is the rep's quota from `manual_inputs`. Reps without a quota row are returned with `state="no_quota"` and excluded from ranking.
+ * @summary Rep performance leaderboard for a period
+ */
+export const getLeaderboard = async (tenantId: string,
+    params: GetLeaderboardParams, options?: RequestInit): Promise<LeaderboardRow[]> => {
+
+  return customFetch<LeaderboardRow[]>(getGetLeaderboardUrl(tenantId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetLeaderboardQueryKey = (tenantId: string,
+    params?: GetLeaderboardParams,) => {
+    return [
+    `/api/tenants/${tenantId}/reports/leaderboard`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetLeaderboardQueryOptions = <TData = Awaited<ReturnType<typeof getLeaderboard>>, TError = ErrorType<BadRequestResponse | ForbiddenResponse>>(tenantId: string,
+    params: GetLeaderboardParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getLeaderboard>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetLeaderboardQueryKey(tenantId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getLeaderboard>>> = ({ signal }) => getLeaderboard(tenantId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(tenantId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getLeaderboard>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetLeaderboardQueryResult = NonNullable<Awaited<ReturnType<typeof getLeaderboard>>>
+export type GetLeaderboardQueryError = ErrorType<BadRequestResponse | ForbiddenResponse>
+
+
+/**
+ * @summary Rep performance leaderboard for a period
+ */
+
+export function useGetLeaderboard<TData = Awaited<ReturnType<typeof getLeaderboard>>, TError = ErrorType<BadRequestResponse | ForbiddenResponse>>(
+ tenantId: string,
+    params: GetLeaderboardParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getLeaderboard>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetLeaderboardQueryOptions(tenantId,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetBreakdownUrl = (tenantId: string,
+    params: GetBreakdownParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/tenants/${tenantId}/reports/breakdown?${stringifiedParams}` : `/api/tenants/${tenantId}/reports/breakdown`
+}
+
+/**
+ * Groups reps by the chosen dimension and aggregates commission (accrual-dated) plus quota for the period. Null attribute values bucket into "Unassigned".
+ * @summary Performance broken down by a people attribute
+ */
+export const getBreakdown = async (tenantId: string,
+    params: GetBreakdownParams, options?: RequestInit): Promise<BreakdownRow[]> => {
+
+  return customFetch<BreakdownRow[]>(getGetBreakdownUrl(tenantId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetBreakdownQueryKey = (tenantId: string,
+    params?: GetBreakdownParams,) => {
+    return [
+    `/api/tenants/${tenantId}/reports/breakdown`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetBreakdownQueryOptions = <TData = Awaited<ReturnType<typeof getBreakdown>>, TError = ErrorType<BadRequestResponse | ForbiddenResponse>>(tenantId: string,
+    params: GetBreakdownParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBreakdown>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetBreakdownQueryKey(tenantId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBreakdown>>> = ({ signal }) => getBreakdown(tenantId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(tenantId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBreakdown>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetBreakdownQueryResult = NonNullable<Awaited<ReturnType<typeof getBreakdown>>>
+export type GetBreakdownQueryError = ErrorType<BadRequestResponse | ForbiddenResponse>
+
+
+/**
+ * @summary Performance broken down by a people attribute
+ */
+
+export function useGetBreakdown<TData = Awaited<ReturnType<typeof getBreakdown>>, TError = ErrorType<BadRequestResponse | ForbiddenResponse>>(
+ tenantId: string,
+    params: GetBreakdownParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBreakdown>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetBreakdownQueryOptions(tenantId,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetSpendUrl = (tenantId: string,
+    params: GetSpendParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/tenants/${tenantId}/reports/spend?${stringifiedParams}` : `/api/tenants/${tenantId}/reports/spend`
+}
+
+/**
+ * Returns the commission liability composition (accrued / payable / paid / clawed-back / total) grouped by period, team, or person, dated by `paidAt` falling back to `payableAt` then `accruedAt`. Use to forecast cash and audit spend by cohort.
+ * @summary Commission spend / liability over time
+ */
+export const getSpend = async (tenantId: string,
+    params: GetSpendParams, options?: RequestInit): Promise<SpendPoint[]> => {
+
+  return customFetch<SpendPoint[]>(getGetSpendUrl(tenantId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSpendQueryKey = (tenantId: string,
+    params?: GetSpendParams,) => {
+    return [
+    `/api/tenants/${tenantId}/reports/spend`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetSpendQueryOptions = <TData = Awaited<ReturnType<typeof getSpend>>, TError = ErrorType<BadRequestResponse | ForbiddenResponse>>(tenantId: string,
+    params: GetSpendParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSpend>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSpendQueryKey(tenantId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSpend>>> = ({ signal }) => getSpend(tenantId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(tenantId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSpend>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetSpendQueryResult = NonNullable<Awaited<ReturnType<typeof getSpend>>>
+export type GetSpendQueryError = ErrorType<BadRequestResponse | ForbiddenResponse>
+
+
+/**
+ * @summary Commission spend / liability over time
+ */
+
+export function useGetSpend<TData = Awaited<ReturnType<typeof getSpend>>, TError = ErrorType<BadRequestResponse | ForbiddenResponse>>(
+ tenantId: string,
+    params: GetSpendParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSpend>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetSpendQueryOptions(tenantId,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getRunCustomReportUrl = (tenantId: string,) => {
+
+
+
+
+  return `/api/tenants/${tenantId}/reports/custom`
+}
+
+/**
+ * Runs a tabular report with the dimensions and metrics selected by an admin. Result is capped server-side; the `truncated` flag indicates whether the cap was hit. Admin-only — operators of the tenant or platform staff.
+ * @summary Ad-hoc report from chosen dimensions + metrics
+ */
+export const runCustomReport = async (tenantId: string,
+    customReportRequest: CustomReportRequest, options?: RequestInit): Promise<CustomReportResult> => {
+
+  return customFetch<CustomReportResult>(getRunCustomReportUrl(tenantId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      customReportRequest,)
+  }
+);}
+
+
+
+
+export const getRunCustomReportMutationOptions = <TError = ErrorType<BadRequestResponse | ForbiddenResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof runCustomReport>>, TError,{tenantId: string;data: BodyType<CustomReportRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof runCustomReport>>, TError,{tenantId: string;data: BodyType<CustomReportRequest>}, TContext> => {
+
+const mutationKey = ['runCustomReport'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof runCustomReport>>, {tenantId: string;data: BodyType<CustomReportRequest>}> = (props) => {
+          const {tenantId,data} = props ?? {};
+
+          return  runCustomReport(tenantId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RunCustomReportMutationResult = NonNullable<Awaited<ReturnType<typeof runCustomReport>>>
+    export type RunCustomReportMutationBody = BodyType<CustomReportRequest>
+    export type RunCustomReportMutationError = ErrorType<BadRequestResponse | ForbiddenResponse>
+
+    /**
+ * @summary Ad-hoc report from chosen dimensions + metrics
+ */
+export const useRunCustomReport = <TError = ErrorType<BadRequestResponse | ForbiddenResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof runCustomReport>>, TError,{tenantId: string;data: BodyType<CustomReportRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof runCustomReport>>,
+        TError,
+        {tenantId: string;data: BodyType<CustomReportRequest>},
+        TContext
+      > => {
+      return useMutation(getRunCustomReportMutationOptions(options));
+    }
+
+export const getGetRepDashboardMeUrl = (tenantId: string,
+    params: GetRepDashboardMeParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/tenants/${tenantId}/rep-dashboard/me?${stringifiedParams}` : `/api/tenants/${tenantId}/rep-dashboard/me`
+}
+
+/**
+ * Returns a read-only dashboard summary for the authenticated rep. Staff users may pass `personId`; rep users are always scoped to the person id attached to their authenticated membership.
+ * @summary Current rep dashboard summary for a period
+ */
+export const getRepDashboardMe = async (tenantId: string,
+    params: GetRepDashboardMeParams, options?: RequestInit): Promise<RepDashboardSummary> => {
+
+  return customFetch<RepDashboardSummary>(getGetRepDashboardMeUrl(tenantId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetRepDashboardMeQueryKey = (tenantId: string,
+    params?: GetRepDashboardMeParams,) => {
+    return [
+    `/api/tenants/${tenantId}/rep-dashboard/me`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetRepDashboardMeQueryOptions = <TData = Awaited<ReturnType<typeof getRepDashboardMe>>, TError = ErrorType<BadRequestResponse | ForbiddenResponse | NotFoundResponse>>(tenantId: string,
+    params: GetRepDashboardMeParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRepDashboardMe>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetRepDashboardMeQueryKey(tenantId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getRepDashboardMe>>> = ({ signal }) => getRepDashboardMe(tenantId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(tenantId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getRepDashboardMe>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetRepDashboardMeQueryResult = NonNullable<Awaited<ReturnType<typeof getRepDashboardMe>>>
+export type GetRepDashboardMeQueryError = ErrorType<BadRequestResponse | ForbiddenResponse | NotFoundResponse>
+
+
+/**
+ * @summary Current rep dashboard summary for a period
+ */
+
+export function useGetRepDashboardMe<TData = Awaited<ReturnType<typeof getRepDashboardMe>>, TError = ErrorType<BadRequestResponse | ForbiddenResponse | NotFoundResponse>>(
+ tenantId: string,
+    params: GetRepDashboardMeParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRepDashboardMe>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetRepDashboardMeQueryOptions(tenantId,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetRepDashboardKpiConfigUrl = (tenantId: string,) => {
+
+
+
+
+  return `/api/tenants/${tenantId}/rep-dashboard/kpi-config`
+}
+
+/**
+ * @summary Get configured KPI cards for rep dashboards
+ */
+export const getRepDashboardKpiConfig = async (tenantId: string, options?: RequestInit): Promise<RepDashboardKpiConfig> => {
+
+  return customFetch<RepDashboardKpiConfig>(getGetRepDashboardKpiConfigUrl(tenantId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetRepDashboardKpiConfigQueryKey = (tenantId: string,) => {
+    return [
+    `/api/tenants/${tenantId}/rep-dashboard/kpi-config`
+    ] as const;
+    }
+
+
+export const getGetRepDashboardKpiConfigQueryOptions = <TData = Awaited<ReturnType<typeof getRepDashboardKpiConfig>>, TError = ErrorType<ForbiddenResponse>>(tenantId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRepDashboardKpiConfig>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetRepDashboardKpiConfigQueryKey(tenantId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getRepDashboardKpiConfig>>> = ({ signal }) => getRepDashboardKpiConfig(tenantId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(tenantId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getRepDashboardKpiConfig>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetRepDashboardKpiConfigQueryResult = NonNullable<Awaited<ReturnType<typeof getRepDashboardKpiConfig>>>
+export type GetRepDashboardKpiConfigQueryError = ErrorType<ForbiddenResponse>
+
+
+/**
+ * @summary Get configured KPI cards for rep dashboards
+ */
+
+export function useGetRepDashboardKpiConfig<TData = Awaited<ReturnType<typeof getRepDashboardKpiConfig>>, TError = ErrorType<ForbiddenResponse>>(
+ tenantId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRepDashboardKpiConfig>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetRepDashboardKpiConfigQueryOptions(tenantId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getUpdateRepDashboardKpiConfigUrl = (tenantId: string,) => {
+
+
+
+
+  return `/api/tenants/${tenantId}/rep-dashboard/kpi-config`
+}
+
+/**
+ * @summary Update configured KPI cards for rep dashboards
+ */
+export const updateRepDashboardKpiConfig = async (tenantId: string,
+    repDashboardKpiConfigInput: RepDashboardKpiConfigInput, options?: RequestInit): Promise<RepDashboardKpiConfig> => {
+
+  return customFetch<RepDashboardKpiConfig>(getUpdateRepDashboardKpiConfigUrl(tenantId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      repDashboardKpiConfigInput,)
+  }
+);}
+
+
+
+
+export const getUpdateRepDashboardKpiConfigMutationOptions = <TError = ErrorType<BadRequestResponse | ForbiddenResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateRepDashboardKpiConfig>>, TError,{tenantId: string;data: BodyType<RepDashboardKpiConfigInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateRepDashboardKpiConfig>>, TError,{tenantId: string;data: BodyType<RepDashboardKpiConfigInput>}, TContext> => {
+
+const mutationKey = ['updateRepDashboardKpiConfig'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateRepDashboardKpiConfig>>, {tenantId: string;data: BodyType<RepDashboardKpiConfigInput>}> = (props) => {
+          const {tenantId,data} = props ?? {};
+
+          return  updateRepDashboardKpiConfig(tenantId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateRepDashboardKpiConfigMutationResult = NonNullable<Awaited<ReturnType<typeof updateRepDashboardKpiConfig>>>
+    export type UpdateRepDashboardKpiConfigMutationBody = BodyType<RepDashboardKpiConfigInput>
+    export type UpdateRepDashboardKpiConfigMutationError = ErrorType<BadRequestResponse | ForbiddenResponse>
+
+    /**
+ * @summary Update configured KPI cards for rep dashboards
+ */
+export const useUpdateRepDashboardKpiConfig = <TError = ErrorType<BadRequestResponse | ForbiddenResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateRepDashboardKpiConfig>>, TError,{tenantId: string;data: BodyType<RepDashboardKpiConfigInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateRepDashboardKpiConfig>>,
+        TError,
+        {tenantId: string;data: BodyType<RepDashboardKpiConfigInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateRepDashboardKpiConfigMutationOptions(options));
+    }
 
 export const getGetSchemaMappingUrl = (tenantId: string,) => {
 

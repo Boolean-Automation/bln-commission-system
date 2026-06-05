@@ -8,6 +8,11 @@ export function formatCurrency(amount: number | null | undefined): string {
   }).format(amount);
 }
 
+export function formatPercent(value: number | null | undefined): string {
+  if (value == null) return "-";
+  return `${value.toFixed(1)}%`;
+}
+
 export function formatDate(dateString: string | null | undefined): string {
   if (!dateString) return "-";
   try {

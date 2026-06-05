@@ -30,6 +30,11 @@ export function defaultEntityMappings(): EntityMapping[] {
         { canonical: "name", label: "Name", required: true },
         { canonical: "roles", label: "Roles" },
         { canonical: "position", label: "Position", required: true },
+        // Optional grouping attributes used by the reporting views. Unmapped →
+        // null; reports collapse null values into an "Unassigned" bucket.
+        { canonical: "region", label: "Region" },
+        { canonical: "cohort", label: "Cohort" },
+        { canonical: "team", label: "Team" },
         { canonical: "email", label: "Work Email" },
         { canonical: "company", label: "Company" },
         { canonical: "ytdSales", label: "YTD Sales" },

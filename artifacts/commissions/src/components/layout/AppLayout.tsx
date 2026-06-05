@@ -51,6 +51,7 @@ import {
   Target,
   ShieldCheck,
   Scale,
+  BarChart3,
   LogOut
 } from "lucide-react";
 
@@ -163,6 +164,7 @@ export function AppLayout({ children }: AppLayoutProps) {
     { name: "Ledger", href: "/ledger", icon: BookOpen },
     { name: "Payroll", href: "/payroll", icon: Wallet },
     { name: "Reconciliation", href: "/reconciliation", icon: Scale },
+    { name: "Reports", href: "/reports", icon: BarChart3 },
   ];
 
   const configuration = [
