@@ -107,10 +107,12 @@ function RuleInstanceEditor({
   instance,
   module,
   onSaved,
+  tenantId,
 }: {
   instance: RuleInstance;
   module: RuleModule | undefined;
   onSaved: () => void;
+  tenantId: string;
 }) {
   const { toast } = useToast();
   const updateRule = useUpdateRuleInstance();
@@ -160,12 +162,17 @@ function RuleInstanceEditor({
       </div>
 
       {isCustom ? (
-        <CustomRuleBuilder value={params} onChange={setParams} />
+        <CustomRuleBuilder
+          value={params}
+          onChange={setParams}
+          tenantId={tenantId}
+        />
       ) : module && module.fields.length > 0 ? (
         <RuleParamsForm
           fields={module.fields}
           value={params}
           onChange={setParams}
+          tenantId={tenantId}
         />
       ) : (
         <p className="text-sm text-muted-foreground">
@@ -477,6 +484,7 @@ export function PlanBuilder({
                         instance={instance}
                         module={moduleByKey.get(instance.ruleModuleKey)}
                         onSaved={() => refresh()}
+                        tenantId={tenantId}
                       />
                     </AccordionContent>
                   </AccordionItem>

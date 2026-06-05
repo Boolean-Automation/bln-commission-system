@@ -11,7 +11,8 @@ export type FieldDef = {
     | "select"
     | "multiselect"
     | "stringlist"
-    | "list";
+    | "list"
+    | "position";
   help?: string;
   min?: number;
   max?: number;
@@ -64,8 +65,9 @@ export const RULE_MODULES: RuleModuleDef[] = [
           {
             key: "position",
             label: "Position name",
-            type: "text",
-            placeholder: "e.g. Sales Level 2",
+            type: "position",
+            placeholder: "Any position (default table)",
+            help: "Leave blank to use this as the default tier table for any position.",
           },
           {
             key: "tiers",
@@ -139,8 +141,8 @@ export const RULE_MODULES: RuleModuleDef[] = [
       { key: "rate", label: "Override rate", type: "percent", min: 0 },
       {
         key: "positionContains",
-        label: "Match position contains",
-        type: "text",
+        label: "Match position",
+        type: "position",
         help: "Anyone whose position contains this text qualifies.",
         placeholder: "e.g. sales manager",
       },

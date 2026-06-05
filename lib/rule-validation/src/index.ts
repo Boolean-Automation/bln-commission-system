@@ -14,7 +14,8 @@ export type FieldDefLike = {
     | "select"
     | "multiselect"
     | "stringlist"
-    | "list";
+    | "list"
+    | "position";
   min?: number | null;
   max?: number | null;
   nullable?: boolean | null;
@@ -83,7 +84,8 @@ function validateFields(
           });
         break;
       }
-      case "text": {
+      case "text":
+      case "position": {
         if (v != null && typeof v !== "string")
           errors.push({ path, message: `${path} must be text` });
         break;

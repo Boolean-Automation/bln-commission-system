@@ -11,6 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Plus, Trash2 } from "lucide-react";
+import { PositionSelect, usePositionNames } from "./PositionSelect";
 
 type Obj = Record<string, unknown>;
 
@@ -58,10 +59,13 @@ function get(obj: Obj, path: string[], fallback: unknown): unknown {
 export function CustomRuleBuilder({
   value,
   onChange,
+  tenantId,
 }: {
   value: Record<string, unknown>;
   onChange: (next: Record<string, unknown>) => void;
+  tenantId: string | null | undefined;
 }) {
+  const positionNames = usePositionNames(tenantId);
   const cfg = value ?? {};
   const recipient = (cfg["recipient"] as Obj) ?? { source: "salesRep" };
   const conditions = Array.isArray(cfg["conditions"])
@@ -108,15 +112,12 @@ export function CustomRuleBuilder({
         {recipient["source"] === "match" && (
           <div className="space-y-3">
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium">
-                Position contains
-              </Label>
-              <Input
+              <Label className="text-xs font-medium">Position</Label>
+              <PositionSelect
+                names={positionNames}
                 value={(recipient["positionContains"] as string) ?? ""}
-                placeholder="e.g. sales manager"
-                onChange={(e) =>
-                  patchRecipient({ positionContains: e.target.value })
-                }
+                onChange={(v) => patchRecipient({ positionContains: v })}
+                placeholder="Any position"
               />
             </div>
             <StringList
@@ -187,22 +188,43 @@ export function CustomRuleBuilder({
                   ))}
                 </SelectContent>
               </Select>
-              <Input
-                className="w-[140px]"
-                value={
-                  cond["value"] === undefined || cond["value"] === null
-                    ? ""
-                    : String(cond["value"])
-                }
-                placeholder="value"
-                onChange={(e) =>
-                  patch({
-                    conditions: conditions.map((c, idx) =>
-                      idx === i ? { ...c, value: e.target.value } : c,
-                    ),
-                  })
-                }
-              />
+              {cond["field"] === "person.position" ? (
+                <div className="w-[140px]">
+                  <PositionSelect
+                    names={positionNames}
+                    value={
+                      cond["value"] === undefined || cond["value"] === null
+                        ? ""
+                        : String(cond["value"])
+                    }
+                    placeholder="Any position"
+                    onChange={(v) =>
+                      patch({
+                        conditions: conditions.map((c, idx) =>
+                          idx === i ? { ...c, value: v } : c,
+                        ),
+                      })
+                    }
+                  />
+                </div>
+              ) : (
+                <Input
+                  className="w-[140px]"
+                  value={
+                    cond["value"] === undefined || cond["value"] === null
+                      ? ""
+                      : String(cond["value"])
+                  }
+                  placeholder="value"
+                  onChange={(e) =>
+                    patch({
+                      conditions: conditions.map((c, idx) =>
+                        idx === i ? { ...c, value: e.target.value } : c,
+                      ),
+                    })
+                  }
+                />
+              )}
               <Button
                 type="button"
                 variant="ghost"

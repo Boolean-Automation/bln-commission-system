@@ -14,6 +14,7 @@ import { Payroll } from "@/pages/Payroll";
 import { Plan } from "@/pages/Plan";
 import { EntryDetail } from "@/pages/EntryDetail";
 import { Mapping } from "@/pages/Mapping";
+import { Positions } from "@/pages/Positions";
 
 const queryClient = new QueryClient();
 
@@ -27,6 +28,7 @@ function Router() {
         <Route path="/payroll" component={Payroll} />
         <Route path="/plan" component={Plan} />
         <Route path="/mapping" component={Mapping} />
+        <Route path="/positions" component={Positions} />
         <Route path="/people" component={People} />
         <Route path="/jobs" component={Jobs} />
         <Route component={NotFound} />

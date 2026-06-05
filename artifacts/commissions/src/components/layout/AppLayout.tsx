@@ -34,7 +34,8 @@ import {
   Settings2,
   CheckCircle2,
   RefreshCw,
-  Loader2
+  Loader2,
+  Tags
 } from "lucide-react";
 
 function SidebarSync({ tenantId }: { tenantId: string }) {
@@ -96,6 +97,7 @@ export function AppLayout({ children }: AppLayoutProps) {
 
   const configuration = [
     { name: "Commission Plan", href: "/plan", icon: CheckCircle2 },
+    { name: "Positions", href: "/positions", icon: Tags },
     { name: "Schema Mapping", href: "/mapping", icon: Settings2 },
   ];
 

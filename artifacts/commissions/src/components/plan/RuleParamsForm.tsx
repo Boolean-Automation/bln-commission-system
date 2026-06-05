@@ -13,10 +13,13 @@ import {
 } from "@/components/ui/select";
 import { Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { PositionSelect, usePositionNames } from "./PositionSelect";
 
 type Obj = Record<string, unknown>;
 
-const SCALAR_TYPES = ["number", "currency", "percent", "text", "select"];
+const PositionNamesContext = React.createContext<string[]>([]);
+
+const SCALAR_TYPES = ["number", "currency", "percent", "text", "select", "position"];
 const isScalarField = (f: FieldDef): boolean => SCALAR_TYPES.includes(f.type);
 const isTableList = (field: FieldDef): boolean => {
   const itemFields = field.itemFields ?? [];
@@ -43,6 +46,7 @@ export function defaultForField(f: FieldDef): unknown {
       return 0;
     case "text":
     case "select":
+    case "position":
       return "";
     case "multiselect":
     case "stringlist":
@@ -105,6 +109,53 @@ function StringListControl({
         <Plus className="h-4 w-4 mr-1" /> Add
       </Button>
     </div>
+  );
+}
+
+function PositionCell({
+  field,
+  value,
+  onChange,
+  ariaLabel,
+}: {
+  field: FieldDef;
+  value: unknown;
+  onChange: (v: unknown) => void;
+  ariaLabel: string;
+}) {
+  const names = React.useContext(PositionNamesContext);
+  return (
+    <PositionSelect
+      names={names}
+      value={value}
+      onChange={onChange}
+      ariaLabel={ariaLabel}
+      placeholder={field.placeholder ?? undefined}
+      className="h-8"
+    />
+  );
+}
+
+function PositionField({
+  field,
+  value,
+  onChange,
+  id,
+}: {
+  field: FieldDef;
+  value: unknown;
+  onChange: (v: unknown) => void;
+  id?: string;
+}) {
+  const names = React.useContext(PositionNamesContext);
+  return (
+    <PositionSelect
+      names={names}
+      value={value}
+      onChange={onChange}
+      id={id}
+      placeholder={field.placeholder ?? undefined}
+    />
   );
 }
 
@@ -185,6 +236,15 @@ function CellControl({
           value={typeof value === "string" ? value : ""}
           placeholder={field.placeholder ?? undefined}
           onChange={(e) => onChange(e.target.value)}
+        />
+      );
+    case "position":
+      return (
+        <PositionCell
+          field={field}
+          value={value}
+          onChange={onChange}
+          ariaLabel={ariaLabel}
         />
       );
     case "select": {
@@ -462,6 +522,24 @@ function FieldControl({
         </div>
       );
     }
+    case "position": {
+      return (
+        <div className="space-y-1.5">
+          <Label htmlFor={id} className="text-xs font-medium">
+            {field.label}
+          </Label>
+          <PositionField
+            field={field}
+            value={value}
+            onChange={onChange}
+            id={id}
+          />
+          {field.help && (
+            <p className="text-xs text-muted-foreground">{field.help}</p>
+          )}
+        </div>
+      );
+    }
     case "select": {
       const options = field.options ?? [];
       return (
@@ -561,10 +639,17 @@ export function RuleParamsForm({
   fields,
   value,
   onChange,
+  tenantId,
 }: {
   fields: FieldDef[];
   value: Record<string, unknown>;
   onChange: (next: Record<string, unknown>) => void;
+  tenantId: string | null | undefined;
 }) {
-  return <ObjectForm fields={fields} value={value} onChange={onChange} />;
+  const names = usePositionNames(tenantId);
+  return (
+    <PositionNamesContext.Provider value={names}>
+      <ObjectForm fields={fields} value={value} onChange={onChange} />
+    </PositionNamesContext.Provider>
+  );
 }
