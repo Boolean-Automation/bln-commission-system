@@ -23,6 +23,16 @@ export const peopleTable = pgTable(
     ytdSales: doublePrecision("ytd_sales"),
     startDate: text("start_date"),
     active: boolean("active").notNull().default(true),
+    // Reference-only commission figures pulled from the tenant's data source
+    // (e.g. Airtable's People table) for the correctness benchmark in the
+    // Reconciliation view. These are NEVER consumed by the engine, ledger,
+    // dashboard, or payroll — they exist solely to compare our computed totals
+    // against the trusted source numbers. All nullable: a tenant that does not
+    // map them simply has no benchmark.
+    benchmarkCommissionOwed: doublePrecision("benchmark_commission_owed"),
+    benchmarkTotalEarned: doublePrecision("benchmark_total_earned"),
+    benchmarkTotalPaid: doublePrecision("benchmark_total_paid"),
+    benchmarkTotalAdjustments: doublePrecision("benchmark_total_adjustments"),
   },
   (table) => [
     // Airtable-sourced rows are unique per tenant by their record id, enabling

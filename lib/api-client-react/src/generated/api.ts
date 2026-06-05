@@ -66,6 +66,7 @@ import type {
   Position,
   PositionInput,
   RecomputeResult,
+  ReconciliationReport,
   ReorderRuleInstances,
   RuleInstance,
   RuleInstanceCreate,
@@ -1897,6 +1898,84 @@ export function useGetPayrollSummary<TData = Awaited<ReturnType<typeof getPayrol
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetPayrollSummaryQueryOptions(tenantId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetReconciliationUrl = (tenantId: string,) => {
+
+
+
+
+  return `/api/tenants/${tenantId}/reconciliation`
+}
+
+/**
+ * Compares our engine-computed per-person commission totals (Net Owed, Total Earned, Paid, Adjustments) against the reference "benchmark" figures pulled from the tenant's data source. Benchmark values are reference-only and never feed the engine, ledger, dashboard, or payroll.
+ * @summary Reconcile computed commission totals against the data-source benchmark
+ */
+export const getReconciliation = async (tenantId: string, options?: RequestInit): Promise<ReconciliationReport> => {
+
+  return customFetch<ReconciliationReport>(getGetReconciliationUrl(tenantId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetReconciliationQueryKey = (tenantId: string,) => {
+    return [
+    `/api/tenants/${tenantId}/reconciliation`
+    ] as const;
+    }
+
+
+export const getGetReconciliationQueryOptions = <TData = Awaited<ReturnType<typeof getReconciliation>>, TError = ErrorType<unknown>>(tenantId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getReconciliation>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetReconciliationQueryKey(tenantId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getReconciliation>>> = ({ signal }) => getReconciliation(tenantId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(tenantId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getReconciliation>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetReconciliationQueryResult = NonNullable<Awaited<ReturnType<typeof getReconciliation>>>
+export type GetReconciliationQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Reconcile computed commission totals against the data-source benchmark
+ */
+
+export function useGetReconciliation<TData = Awaited<ReturnType<typeof getReconciliation>>, TError = ErrorType<unknown>>(
+ tenantId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getReconciliation>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetReconciliationQueryOptions(tenantId,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

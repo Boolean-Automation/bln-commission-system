@@ -16,6 +16,7 @@ import {
 import { requireTenantAccess } from "../lib/rbac";
 import { serializeMapping } from "../lib/serialize";
 import { DEFAULT_PROVIDER_KEY } from "../lib/providers";
+import { mergeCanonicalDefaults } from "../lib/defaultSchemaMapping";
 
 const router: IRouter = Router();
 
@@ -52,7 +53,11 @@ router.get(
       );
       return;
     }
-    res.json(GetSchemaMappingResponse.parse(serializeMapping(mapping, provider)));
+    const merged = {
+      ...mapping,
+      entities: mergeCanonicalDefaults(mapping.entities as EntityMapping[]),
+    };
+    res.json(GetSchemaMappingResponse.parse(serializeMapping(merged, provider)));
   },
 );
 

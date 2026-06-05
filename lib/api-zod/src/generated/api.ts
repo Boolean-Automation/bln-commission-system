@@ -471,6 +471,70 @@ export const GetPayrollSummaryResponse = zod.array(GetPayrollSummaryResponseItem
 
 
 /**
+ * Compares our engine-computed per-person commission totals (Net Owed, Total Earned, Paid, Adjustments) against the reference "benchmark" figures pulled from the tenant's data source. Benchmark values are reference-only and never feed the engine, ledger, dashboard, or payroll.
+ * @summary Reconcile computed commission totals against the data-source benchmark
+ */
+export const GetReconciliationParams = zod.object({
+  "tenantId": zod.coerce.string()
+})
+
+export const GetReconciliationResponse = zod.object({
+  "tenantId": zod.string(),
+  "tolerance": zod.number().describe('Absolute rounding tolerance used for the match indicator.'),
+  "rollup": zod.object({
+  "peopleCount": zod.number(),
+  "matchCount": zod.number(),
+  "mismatchCount": zod.number(),
+  "noBenchmarkCount": zod.number(),
+  "computed": zod.object({
+  "netOwed": zod.number().describe('Accrued + payable (matches the payroll Net Owed).'),
+  "totalEarned": zod.number().describe('Sum of non-voided \/ non-clawed-back entry amounts.'),
+  "paid": zod.number().describe('Sum of paid entry amounts.'),
+  "adjustments": zod.number().describe('Sum of operator-originated adjustment dollars.')
+}).describe('Our engine-computed per-person totals.'),
+  "benchmark": zod.object({
+  "netOwed": zod.number().describe('Accrued + payable (matches the payroll Net Owed).'),
+  "totalEarned": zod.number().describe('Sum of non-voided \/ non-clawed-back entry amounts.'),
+  "paid": zod.number().describe('Sum of paid entry amounts.'),
+  "adjustments": zod.number().describe('Sum of operator-originated adjustment dollars.')
+}).describe('Our engine-computed per-person totals.')
+}),
+  "lines": zod.array(zod.object({
+  "personId": zod.string(),
+  "personName": zod.string(),
+  "inPeople": zod.boolean().describe('Whether a people row exists for this person in our system.'),
+  "hasEntries": zod.boolean().describe('Whether this person has any commission ledger entries.'),
+  "hasBenchmark": zod.boolean().describe('Whether the source provided at least one benchmark value.'),
+  "status": zod.enum(['match', 'mismatch', 'no_benchmark']),
+  "computed": zod.object({
+  "netOwed": zod.number().describe('Accrued + payable (matches the payroll Net Owed).'),
+  "totalEarned": zod.number().describe('Sum of non-voided \/ non-clawed-back entry amounts.'),
+  "paid": zod.number().describe('Sum of paid entry amounts.'),
+  "adjustments": zod.number().describe('Sum of operator-originated adjustment dollars.')
+}).describe('Our engine-computed per-person totals.'),
+  "benchmark": zod.object({
+  "netOwed": zod.number().nullable(),
+  "totalEarned": zod.number().nullable(),
+  "paid": zod.number().nullable(),
+  "adjustments": zod.number().nullable()
+}).describe('Per-metric values that may be absent. Used for benchmark figures (null when the source did not provide one) and deltas (null when there is no benchmark to subtract).'),
+  "delta": zod.object({
+  "netOwed": zod.number().nullable(),
+  "totalEarned": zod.number().nullable(),
+  "paid": zod.number().nullable(),
+  "adjustments": zod.number().nullable()
+}).describe('Per-metric values that may be absent. Used for benchmark figures (null when the source did not provide one) and deltas (null when there is no benchmark to subtract).'),
+  "match": zod.object({
+  "netOwed": zod.boolean().nullable(),
+  "totalEarned": zod.boolean().nullable(),
+  "paid": zod.boolean().nullable(),
+  "adjustments": zod.boolean().nullable()
+}).describe('Per-metric match indicator within the rounding tolerance. Null when there is no benchmark value for that metric (match is indeterminate).')
+}))
+})
+
+
+/**
  * @summary List mirrored people for a tenant
  */
 export const ListPeopleParams = zod.object({

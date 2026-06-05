@@ -14,6 +14,7 @@ import { Ledger } from "@/pages/Ledger";
 import { People } from "@/pages/People";
 import { Jobs } from "@/pages/Jobs";
 import { Payroll } from "@/pages/Payroll";
+import { Reconciliation } from "@/pages/Reconciliation";
 import { Plan } from "@/pages/Plan";
 import { EntryDetail } from "@/pages/EntryDetail";
 import { Mapping } from "@/pages/Mapping";
@@ -32,6 +33,7 @@ function StaffRouter() {
         <Route path="/ledger" component={Ledger} />
         <Route path="/ledger/:id" component={EntryDetail} />
         <Route path="/payroll" component={Payroll} />
+        <Route path="/reconciliation" component={Reconciliation} />
         <Route path="/plan" component={Plan} />
         <Route path="/mapping" component={Mapping} />
         <Route path="/positions" component={Positions} />

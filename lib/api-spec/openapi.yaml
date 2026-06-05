@@ -478,6 +478,26 @@ paths:
                 items:
                   $ref: "#/components/schemas/PayrollLine"
 
+  /tenants/{tenantId}/reconciliation:
+    get:
+      operationId: getReconciliation
+      tags: [insights]
+      summary: Reconcile computed commission totals against the data-source benchmark
+      description: >-
+        Compares our engine-computed per-person commission totals (Net Owed,
+        Total Earned, Paid, Adjustments) against the reference "benchmark"
+        figures pulled from the tenant's data source. Benchmark values are
+        reference-only and never feed the engine, ledger, dashboard, or payroll.
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+      responses:
+        "200":
+          description: Reconciliation report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReconciliationReport"
+
   /tenants/{tenantId}/people:
     get:
       operationId: listPeople
@@ -2065,6 +2085,135 @@ components:
           type: number
         entryCount:
           type: integer
+
+    ReconciliationMetrics:
+      type: object
+      description: Our engine-computed per-person totals.
+      required: [netOwed, totalEarned, paid, adjustments]
+      properties:
+        netOwed:
+          type: number
+          description: Accrued + payable (matches the payroll Net Owed).
+        totalEarned:
+          type: number
+          description: Sum of non-voided / non-clawed-back entry amounts.
+        paid:
+          type: number
+          description: Sum of paid entry amounts.
+        adjustments:
+          type: number
+          description: Sum of operator-originated adjustment dollars.
+
+    ReconciliationNullableMetrics:
+      type: object
+      description: >-
+        Per-metric values that may be absent. Used for benchmark figures (null
+        when the source did not provide one) and deltas (null when there is no
+        benchmark to subtract).
+      required: [netOwed, totalEarned, paid, adjustments]
+      properties:
+        netOwed:
+          type: ["number", "null"]
+        totalEarned:
+          type: ["number", "null"]
+        paid:
+          type: ["number", "null"]
+        adjustments:
+          type: ["number", "null"]
+
+    ReconciliationMatchFlags:
+      type: object
+      description: >-
+        Per-metric match indicator within the rounding tolerance. Null when
+        there is no benchmark value for that metric (match is indeterminate).
+      required: [netOwed, totalEarned, paid, adjustments]
+      properties:
+        netOwed:
+          type: ["boolean", "null"]
+        totalEarned:
+          type: ["boolean", "null"]
+        paid:
+          type: ["boolean", "null"]
+        adjustments:
+          type: ["boolean", "null"]
+
+    ReconciliationLine:
+      type: object
+      required:
+        - personId
+        - personName
+        - inPeople
+        - hasEntries
+        - hasBenchmark
+        - status
+        - computed
+        - benchmark
+        - delta
+        - match
+      properties:
+        personId:
+          type: string
+        personName:
+          type: string
+        inPeople:
+          type: boolean
+          description: Whether a people row exists for this person in our system.
+        hasEntries:
+          type: boolean
+          description: Whether this person has any commission ledger entries.
+        hasBenchmark:
+          type: boolean
+          description: Whether the source provided at least one benchmark value.
+        status:
+          type: string
+          enum: [match, mismatch, no_benchmark]
+        computed:
+          $ref: "#/components/schemas/ReconciliationMetrics"
+        benchmark:
+          $ref: "#/components/schemas/ReconciliationNullableMetrics"
+        delta:
+          $ref: "#/components/schemas/ReconciliationNullableMetrics"
+        match:
+          $ref: "#/components/schemas/ReconciliationMatchFlags"
+
+    ReconciliationRollup:
+      type: object
+      required:
+        - peopleCount
+        - matchCount
+        - mismatchCount
+        - noBenchmarkCount
+        - computed
+        - benchmark
+      properties:
+        peopleCount:
+          type: integer
+        matchCount:
+          type: integer
+        mismatchCount:
+          type: integer
+        noBenchmarkCount:
+          type: integer
+        computed:
+          $ref: "#/components/schemas/ReconciliationMetrics"
+        benchmark:
+          $ref: "#/components/schemas/ReconciliationMetrics"
+
+    ReconciliationReport:
+      type: object
+      required: [tenantId, tolerance, rollup, lines]
+      properties:
+        tenantId:
+          type: string
+        tolerance:
+          type: number
+          description: Absolute rounding tolerance used for the match indicator.
+        rollup:
+          $ref: "#/components/schemas/ReconciliationRollup"
+        lines:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReconciliationLine"
 
     RecomputeResult:
       type: object

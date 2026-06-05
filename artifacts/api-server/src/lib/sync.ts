@@ -165,6 +165,13 @@ export async function syncTenant(tenantId: string): Promise<SyncResult> {
       // recomputeTenant), not synced from the source.
       startDate: parseStr(get("startDate")),
       active: parseBool(get("active")),
+      // Reference-only benchmark figures from the source's own commission
+      // columns. Stored verbatim and never fed into the engine/ledger/payroll;
+      // they only back the Reconciliation comparison view. Unmapped → null.
+      benchmarkCommissionOwed: parseNumber(get("benchmarkCommissionOwed")),
+      benchmarkTotalEarned: parseNumber(get("benchmarkTotalEarned")),
+      benchmarkTotalPaid: parseNumber(get("benchmarkTotalPaid")),
+      benchmarkTotalAdjustments: parseNumber(get("benchmarkTotalAdjustments")),
     };
     await db
       .insert(peopleTable)

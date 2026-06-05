@@ -35,6 +35,25 @@ export function defaultEntityMappings(): EntityMapping[] {
         { canonical: "ytdSales", label: "YTD Sales" },
         { canonical: "startDate", label: "Start Date" },
         { canonical: "active", label: "Active" },
+        // Reference-only "benchmark" fields: the source's own commission figures.
+        // All optional. They are pulled in for side-by-side comparison in the
+        // Reconciliation view and never feed the engine, ledger, or payroll.
+        {
+          canonical: "benchmarkCommissionOwed",
+          label: "Benchmark · Commission Owed",
+        },
+        {
+          canonical: "benchmarkTotalEarned",
+          label: "Benchmark · Total Commission Earned",
+        },
+        {
+          canonical: "benchmarkTotalPaid",
+          label: "Benchmark · Total Commission Paid",
+        },
+        {
+          canonical: "benchmarkTotalAdjustments",
+          label: "Benchmark · Total Adjustments",
+        },
       ]),
       unrecognizedFields: [],
     },
@@ -61,4 +80,38 @@ export function defaultEntityMappings(): EntityMapping[] {
       unrecognizedFields: [],
     },
   ];
+}
+
+/**
+ * Forward-fills a tenant's persisted mapping with any canonical fields that were
+ * introduced after the mapping was first saved. New optional fields (e.g. the
+ * reference-only benchmark fields) are appended as unmapped so existing tenants
+ * can map them in the UI without a one-off migration. Existing fields keep their
+ * mapped state, order, and labels; a whole missing entity is appended verbatim.
+ */
+export function mergeCanonicalDefaults(
+  entities: EntityMapping[],
+): EntityMapping[] {
+  const defaults = defaultEntityMappings();
+  const byKind = new Map(entities.map((e) => [e.entityKind, e]));
+  const result: EntityMapping[] = [];
+  for (const def of defaults) {
+    const existing = byKind.get(def.entityKind);
+    if (!existing) {
+      result.push(def);
+      continue;
+    }
+    const present = new Set(existing.fields.map((f) => f.canonical));
+    const missing = def.fields.filter((f) => !present.has(f.canonical));
+    result.push(
+      missing.length === 0
+        ? existing
+        : { ...existing, fields: [...existing.fields, ...missing] },
+    );
+  }
+  // Preserve any persisted entities that aren't in the current defaults.
+  for (const e of entities) {
+    if (!defaults.some((d) => d.entityKind === e.entityKind)) result.push(e);
+  }
+  return result;
 }

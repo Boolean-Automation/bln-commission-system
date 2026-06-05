@@ -669,6 +669,90 @@ export interface PayrollLine {
   entryCount: number;
 }
 
+/**
+ * Our engine-computed per-person totals.
+ */
+export interface ReconciliationMetrics {
+  /** Accrued + payable (matches the payroll Net Owed). */
+  netOwed: number;
+  /** Sum of non-voided / non-clawed-back entry amounts. */
+  totalEarned: number;
+  /** Sum of paid entry amounts. */
+  paid: number;
+  /** Sum of operator-originated adjustment dollars. */
+  adjustments: number;
+}
+
+/**
+ * Per-metric values that may be absent. Used for benchmark figures (null when the source did not provide one) and deltas (null when there is no benchmark to subtract).
+ */
+export interface ReconciliationNullableMetrics {
+  /** @nullable */
+  netOwed: number | null;
+  /** @nullable */
+  totalEarned: number | null;
+  /** @nullable */
+  paid: number | null;
+  /** @nullable */
+  adjustments: number | null;
+}
+
+/**
+ * Per-metric match indicator within the rounding tolerance. Null when there is no benchmark value for that metric (match is indeterminate).
+ */
+export interface ReconciliationMatchFlags {
+  /** @nullable */
+  netOwed: boolean | null;
+  /** @nullable */
+  totalEarned: boolean | null;
+  /** @nullable */
+  paid: boolean | null;
+  /** @nullable */
+  adjustments: boolean | null;
+}
+
+export type ReconciliationLineStatus = typeof ReconciliationLineStatus[keyof typeof ReconciliationLineStatus];
+
+
+export const ReconciliationLineStatus = {
+  match: 'match',
+  mismatch: 'mismatch',
+  no_benchmark: 'no_benchmark',
+} as const;
+
+export interface ReconciliationLine {
+  personId: string;
+  personName: string;
+  /** Whether a people row exists for this person in our system. */
+  inPeople: boolean;
+  /** Whether this person has any commission ledger entries. */
+  hasEntries: boolean;
+  /** Whether the source provided at least one benchmark value. */
+  hasBenchmark: boolean;
+  status: ReconciliationLineStatus;
+  computed: ReconciliationMetrics;
+  benchmark: ReconciliationNullableMetrics;
+  delta: ReconciliationNullableMetrics;
+  match: ReconciliationMatchFlags;
+}
+
+export interface ReconciliationRollup {
+  peopleCount: number;
+  matchCount: number;
+  mismatchCount: number;
+  noBenchmarkCount: number;
+  computed: ReconciliationMetrics;
+  benchmark: ReconciliationMetrics;
+}
+
+export interface ReconciliationReport {
+  tenantId: string;
+  /** Absolute rounding tolerance used for the match indicator. */
+  tolerance: number;
+  rollup: ReconciliationRollup;
+  lines: ReconciliationLine[];
+}
+
 export interface RecomputeResult {
   tenantId: string;
   entriesCreated: number;

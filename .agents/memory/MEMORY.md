@@ -7,3 +7,4 @@
 - [Data-source providers](data-source-providers.md) — tenant.dataSourceProvider + registry seam; mapping keys are provider-neutral sourceField*; Airtable connection cols/endpoints kept stable on purpose.
 - [api-zod codegen barrel](api-zod-codegen-barrel.md) — Orval re-adds `export * from "./generated/types"` to lib/api-zod/src/index.ts every run; restore to single api line or typecheck:libs fails (TS2308).
 - [Manual inputs module](manual-inputs.md) — per-rep/per-period quota/OTE/accelerator; period key formats + server-derived effective dates; exposed as named variables for downstream features.
+- [Benchmark reconciliation](benchmark-reconciliation.md) — 4 source benchmark figures on people are REFERENCE-ONLY (never feed engine/ledger/dashboard/payroll); recon endpoint compares vs computed totals.
