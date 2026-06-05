@@ -104,6 +104,7 @@ export const UpdateTenantResponse = zod.object({
   "status": zod.enum(['active', 'paused']),
   "airtableBaseId": zod.string().nullish(),
   "airtableConnected": zod.boolean(),
+  "requiredFieldsMapped": zod.boolean().describe('True when every entity has a source table chosen and all required fields are mapped.'),
   "peopleCount": zod.number(),
   "jobsCount": zod.number(),
   "entryCount": zod.number(),

@@ -12,8 +12,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Plus, Trash2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 type Obj = Record<string, unknown>;
+
+const SCALAR_TYPES = ["number", "currency", "percent", "text", "select"];
+const isScalarField = (f: FieldDef): boolean => SCALAR_TYPES.includes(f.type);
+const isTableList = (field: FieldDef): boolean => {
+  const itemFields = field.itemFields ?? [];
+  return itemFields.length > 0 && itemFields.every(isScalarField);
+};
 
 const pctToDisplay = (v: unknown): string => {
   if (v === null || v === undefined || v === "") return "";
@@ -100,6 +108,202 @@ function StringListControl({
   );
 }
 
+function CellControl({
+  field,
+  value,
+  onChange,
+  ariaLabel,
+}: {
+  field: FieldDef;
+  value: unknown;
+  onChange: (v: unknown) => void;
+  ariaLabel: string;
+}) {
+  switch (field.type) {
+    case "number":
+    case "currency": {
+      const display =
+        value === null || value === undefined || value === ""
+          ? ""
+          : String(value);
+      return (
+        <div className="relative">
+          {field.type === "currency" && (
+            <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+              $
+            </span>
+          )}
+          <Input
+            type="number"
+            inputMode="decimal"
+            aria-label={ariaLabel}
+            className={cn("h-8", field.type === "currency" && "pl-6")}
+            value={display}
+            min={field.min ?? undefined}
+            max={field.max ?? undefined}
+            step={field.step ?? "any"}
+            placeholder={field.placeholder ?? undefined}
+            onChange={(e) => {
+              const raw = e.target.value;
+              if (raw === "") {
+                onChange(field.nullable ? null : 0);
+                return;
+              }
+              onChange(Number(raw));
+            }}
+          />
+        </div>
+      );
+    }
+    case "percent":
+      return (
+        <div className="relative">
+          <Input
+            type="number"
+            inputMode="decimal"
+            aria-label={ariaLabel}
+            className="h-8 pr-7"
+            value={pctToDisplay(value)}
+            min={field.min ?? undefined}
+            step="any"
+            placeholder={field.placeholder ?? undefined}
+            onChange={(e) => {
+              const raw = e.target.value;
+              onChange(raw === "" ? 0 : pctToStore(raw));
+            }}
+          />
+          <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+            %
+          </span>
+        </div>
+      );
+    case "text":
+      return (
+        <Input
+          className="h-8"
+          aria-label={ariaLabel}
+          value={typeof value === "string" ? value : ""}
+          placeholder={field.placeholder ?? undefined}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      );
+    case "select": {
+      const options = field.options ?? [];
+      return (
+        <Select
+          value={typeof value === "string" ? value : ""}
+          onValueChange={(v) => onChange(v)}
+        >
+          <SelectTrigger className="h-8" aria-label={ariaLabel}>
+            <SelectValue placeholder="Select…" />
+          </SelectTrigger>
+          <SelectContent>
+            {options.map((o) => (
+              <SelectItem key={o.value} value={o.value}>
+                {o.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      );
+    }
+    default:
+      return null;
+  }
+}
+
+function TableListControl({
+  field,
+  value,
+  onChange,
+}: {
+  field: FieldDef;
+  value: unknown;
+  onChange: (v: unknown) => void;
+}) {
+  const items = Array.isArray(value) ? (value as Obj[]) : [];
+  const itemFields = field.itemFields ?? [];
+  return (
+    <div className="space-y-2">
+      <Label className="text-xs font-medium">{field.label}</Label>
+      {field.help && (
+        <p className="text-xs text-muted-foreground">{field.help}</p>
+      )}
+      <div className="overflow-x-auto rounded-md border">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b bg-muted/50">
+              {itemFields.map((f) => (
+                <th
+                  key={f.key}
+                  className="px-2 py-1.5 text-left text-xs font-medium text-muted-foreground"
+                >
+                  {f.label}
+                </th>
+              ))}
+              <th className="w-9" />
+            </tr>
+          </thead>
+          <tbody>
+            {items.length === 0 && (
+              <tr>
+                <td
+                  colSpan={itemFields.length + 1}
+                  className="px-2 py-3 text-center text-xs text-muted-foreground"
+                >
+                  No rows yet
+                </td>
+              </tr>
+            )}
+            {items.map((item, i) => (
+              <tr key={i} className="border-b last:border-0">
+                {itemFields.map((f) => (
+                  <td key={f.key} className="px-2 py-1.5 align-top">
+                    <CellControl
+                      field={f}
+                      value={item[f.key]}
+                      ariaLabel={`${f.label} (row ${i + 1})`}
+                      onChange={(v) =>
+                        onChange(
+                          items.map((it, idx) =>
+                            idx === i ? { ...it, [f.key]: v } : it,
+                          ),
+                        )
+                      }
+                    />
+                  </td>
+                ))}
+                <td className="px-1 py-1.5 align-middle">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    aria-label={`Remove row ${i + 1}`}
+                    onClick={() =>
+                      onChange(items.filter((_, idx) => idx !== i))
+                    }
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={() => onChange([...items, buildDefaultObject(itemFields)])}
+      >
+        <Plus className="h-4 w-4 mr-1" /> Add
+      </Button>
+    </div>
+  );
+}
+
 function ListControl({
   field,
   value,
@@ -109,6 +313,9 @@ function ListControl({
   value: unknown;
   onChange: (v: unknown) => void;
 }) {
+  if (isTableList(field)) {
+    return <TableListControl field={field} value={value} onChange={onChange} />;
+  }
   const items = Array.isArray(value) ? (value as Obj[]) : [];
   const itemFields = field.itemFields ?? [];
   return (
