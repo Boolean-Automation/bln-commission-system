@@ -174,6 +174,53 @@ function evalCustomCondition(
   }
 }
 
+// Cross-cutting per-rule exclusions stored on the rule instance's `appliesTo`.
+// Applied to EVERY rule module: a job is skipped for an instance when the job's
+// sales rep or manager is named in `excludePeople`, or when either of those
+// people carries a role (people.roles) or position (people.position) listed in
+// `excludeRoles`. Matching is case/whitespace-insensitive throughout.
+type RuleExclusions = { excludePeople?: string[]; excludeRoles?: string[] };
+
+function isJobExcluded(
+  inst: RuleInstanceRow,
+  job: Job,
+  people: Person[],
+): boolean {
+  const applies = (inst.appliesTo ?? {}) as RuleExclusions;
+  const excludePeople = (
+    Array.isArray(applies.excludePeople) ? applies.excludePeople : []
+  )
+    .map((n) => n.trim().toLowerCase())
+    .filter((n) => n.length > 0);
+  const excludeRoles = (
+    Array.isArray(applies.excludeRoles) ? applies.excludeRoles : []
+  )
+    .map((r) => r.trim().toLowerCase())
+    .filter((r) => r.length > 0);
+  if (excludePeople.length === 0 && excludeRoles.length === 0) return false;
+
+  const names = [job.salesRep, job.manager];
+
+  if (excludePeople.length > 0) {
+    for (const n of names) {
+      if (n && excludePeople.includes(n.trim().toLowerCase())) return true;
+    }
+  }
+
+  if (excludeRoles.length > 0) {
+    for (const n of names) {
+      const p = findPersonByName(people, n);
+      if (!p) continue;
+      const roles = (p.roles ?? []).map((r) => r.trim().toLowerCase());
+      if (roles.some((r) => excludeRoles.includes(r))) return true;
+      const pos = (p.position ?? "").trim().toLowerCase();
+      if (pos.length > 0 && excludeRoles.includes(pos)) return true;
+    }
+  }
+
+  return false;
+}
+
 function resolveCustomRecipients(
   recipient: CustomRecipient,
   job: Job,
@@ -268,6 +315,9 @@ export async function recomputeTenant(
     const label = `Job ${job.jobNumber}${job.customer ? ` - ${job.customer}` : ""}`;
 
     for (const inst of enabled) {
+      // Per-rule exclusions apply to every module: skip this job entirely for
+      // this instance when the job's people/roles are excluded.
+      if (isJobExcluded(inst, job, people)) continue;
       if (inst.ruleModuleKey === "tiered_ytd_rate") {
         const rep = findPersonByName(people, job.salesRep);
         if (!rep) continue;

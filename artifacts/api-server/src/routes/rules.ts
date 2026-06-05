@@ -130,6 +130,7 @@ router.post(
         ruleModuleName: body.data.name?.trim() || moduleDef.name,
         description: body.data.description?.trim() || moduleDef.description,
         params: effectiveParams,
+        appliesTo: (body.data.appliesTo ?? {}) as Record<string, unknown>,
         enabled: body.data.enabled ?? true,
         orderIndex: nextOrder,
       });
@@ -237,6 +238,8 @@ router.patch(
       }
       set["params"] = body.data.params as Record<string, unknown>;
     }
+    if (body.data.appliesTo !== undefined)
+      set["appliesTo"] = body.data.appliesTo as Record<string, unknown>;
     if (body.data.enabled !== undefined) set["enabled"] = body.data.enabled;
     const [updated] = await db
       .update(ruleInstancesTable)

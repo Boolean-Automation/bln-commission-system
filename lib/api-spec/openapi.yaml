@@ -998,12 +998,29 @@ components:
           type: object
           additionalProperties: true
         appliesTo:
-          type: object
-          additionalProperties: true
+          $ref: "#/components/schemas/RuleAppliesTo"
         enabled:
           type: boolean
         order:
           type: integer
+
+    RuleAppliesTo:
+      type: object
+      description: >-
+        Cross-cutting targeting/exclusion config applied to a rule instance
+        regardless of its module. A job is skipped for this rule when its sales
+        rep or manager is named in excludePeople, or has a role/position listed
+        in excludeRoles.
+      properties:
+        excludePeople:
+          type: array
+          items:
+            type: string
+        excludeRoles:
+          type: array
+          items:
+            type: string
+      additionalProperties: true
 
     RuleInstanceUpdate:
       type: object
@@ -1011,6 +1028,8 @@ components:
         params:
           type: object
           additionalProperties: true
+        appliesTo:
+          $ref: "#/components/schemas/RuleAppliesTo"
         enabled:
           type: boolean
 
@@ -1052,6 +1071,8 @@ components:
         params:
           type: object
           additionalProperties: true
+        appliesTo:
+          $ref: "#/components/schemas/RuleAppliesTo"
         enabled:
           type: boolean
 

@@ -236,7 +236,14 @@ export interface RuleModule {
 
 export type RuleInstanceParams = { [key: string]: unknown };
 
-export type RuleInstanceAppliesTo = { [key: string]: unknown };
+/**
+ * Cross-cutting targeting/exclusion config applied to a rule instance regardless of its module. A job is skipped for this rule when its sales rep or manager is named in excludePeople, or has a role/position listed in excludeRoles.
+ */
+export interface RuleAppliesTo {
+  excludePeople?: string[];
+  excludeRoles?: string[];
+  [key: string]: unknown;
+ }
 
 export interface RuleInstance {
   id: string;
@@ -245,7 +252,7 @@ export interface RuleInstance {
   ruleModuleName: string;
   description: string;
   params: RuleInstanceParams;
-  appliesTo: RuleInstanceAppliesTo;
+  appliesTo: RuleAppliesTo;
   enabled: boolean;
   order: number;
 }
@@ -254,6 +261,7 @@ export type RuleInstanceUpdateParams = { [key: string]: unknown };
 
 export interface RuleInstanceUpdate {
   params?: RuleInstanceUpdateParams;
+  appliesTo?: RuleAppliesTo;
   enabled?: boolean;
 }
 
@@ -279,6 +287,7 @@ export interface RuleInstanceCreate {
   name?: string;
   description?: string;
   params?: RuleInstanceCreateParams;
+  appliesTo?: RuleAppliesTo;
   enabled?: boolean;
 }
 

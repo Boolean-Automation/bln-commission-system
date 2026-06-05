@@ -447,7 +447,10 @@ export const GetActivePlanResponse = zod.object({
   "ruleModuleName": zod.string(),
   "description": zod.string(),
   "params": zod.record(zod.string(), zod.unknown()),
-  "appliesTo": zod.record(zod.string(), zod.unknown()),
+  "appliesTo": zod.object({
+  "excludePeople": zod.array(zod.string()).optional(),
+  "excludeRoles": zod.array(zod.string()).optional()
+}).describe('Cross-cutting targeting\/exclusion config applied to a rule instance regardless of its module. A job is skipped for this rule when its sales rep or manager is named in excludePeople, or has a role\/position listed in excludeRoles.'),
   "enabled": zod.boolean(),
   "order": zod.number()
 }))
@@ -466,6 +469,10 @@ export const CreateRuleInstanceBody = zod.object({
   "name": zod.string().optional(),
   "description": zod.string().optional(),
   "params": zod.record(zod.string(), zod.unknown()).optional(),
+  "appliesTo": zod.object({
+  "excludePeople": zod.array(zod.string()).optional(),
+  "excludeRoles": zod.array(zod.string()).optional()
+}).optional().describe('Cross-cutting targeting\/exclusion config applied to a rule instance regardless of its module. A job is skipped for this rule when its sales rep or manager is named in excludePeople, or has a role\/position listed in excludeRoles.'),
   "enabled": zod.boolean().optional()
 })
 
@@ -482,7 +489,10 @@ export const CreateRuleInstanceResponse = zod.object({
   "ruleModuleName": zod.string(),
   "description": zod.string(),
   "params": zod.record(zod.string(), zod.unknown()),
-  "appliesTo": zod.record(zod.string(), zod.unknown()),
+  "appliesTo": zod.object({
+  "excludePeople": zod.array(zod.string()).optional(),
+  "excludeRoles": zod.array(zod.string()).optional()
+}).describe('Cross-cutting targeting\/exclusion config applied to a rule instance regardless of its module. A job is skipped for this rule when its sales rep or manager is named in excludePeople, or has a role\/position listed in excludeRoles.'),
   "enabled": zod.boolean(),
   "order": zod.number()
 }))
@@ -513,7 +523,10 @@ export const ReorderRuleInstancesResponse = zod.object({
   "ruleModuleName": zod.string(),
   "description": zod.string(),
   "params": zod.record(zod.string(), zod.unknown()),
-  "appliesTo": zod.record(zod.string(), zod.unknown()),
+  "appliesTo": zod.object({
+  "excludePeople": zod.array(zod.string()).optional(),
+  "excludeRoles": zod.array(zod.string()).optional()
+}).describe('Cross-cutting targeting\/exclusion config applied to a rule instance regardless of its module. A job is skipped for this rule when its sales rep or manager is named in excludePeople, or has a role\/position listed in excludeRoles.'),
   "enabled": zod.boolean(),
   "order": zod.number()
 }))
@@ -529,6 +542,10 @@ export const UpdateRuleInstanceParams = zod.object({
 
 export const UpdateRuleInstanceBody = zod.object({
   "params": zod.record(zod.string(), zod.unknown()).optional(),
+  "appliesTo": zod.object({
+  "excludePeople": zod.array(zod.string()).optional(),
+  "excludeRoles": zod.array(zod.string()).optional()
+}).optional().describe('Cross-cutting targeting\/exclusion config applied to a rule instance regardless of its module. A job is skipped for this rule when its sales rep or manager is named in excludePeople, or has a role\/position listed in excludeRoles.'),
   "enabled": zod.boolean().optional()
 })
 
@@ -539,7 +556,10 @@ export const UpdateRuleInstanceResponse = zod.object({
   "ruleModuleName": zod.string(),
   "description": zod.string(),
   "params": zod.record(zod.string(), zod.unknown()),
-  "appliesTo": zod.record(zod.string(), zod.unknown()),
+  "appliesTo": zod.object({
+  "excludePeople": zod.array(zod.string()).optional(),
+  "excludeRoles": zod.array(zod.string()).optional()
+}).describe('Cross-cutting targeting\/exclusion config applied to a rule instance regardless of its module. A job is skipped for this rule when its sales rep or manager is named in excludePeople, or has a role\/position listed in excludeRoles.'),
   "enabled": zod.boolean(),
   "order": zod.number()
 })

@@ -62,6 +62,10 @@ import {
 import { RuleParamsForm } from "@/components/plan/RuleParamsForm";
 import { CustomRuleBuilder } from "@/components/plan/CustomRuleBuilder";
 import {
+  RuleExclusionsEditor,
+  type RuleExclusions,
+} from "@/components/plan/RuleExclusionsEditor";
+import {
   validateRuleParams,
   type RuleModuleLike,
 } from "@workspace/rule-validation";
@@ -121,10 +125,14 @@ function RuleInstanceEditor({
   const [params, setParams] = useState<Record<string, unknown>>(
     instance.params,
   );
+  const [appliesTo, setAppliesTo] = useState<RuleExclusions>(
+    instance.appliesTo as RuleExclusions,
+  );
 
   const dirty =
     enabled !== instance.enabled ||
-    JSON.stringify(params) !== JSON.stringify(instance.params);
+    JSON.stringify(params) !== JSON.stringify(instance.params) ||
+    JSON.stringify(appliesTo) !== JSON.stringify(instance.appliesTo);
 
   const isCustom = instance.ruleModuleKey === "custom";
   const errors = module
@@ -134,7 +142,7 @@ function RuleInstanceEditor({
   const handleSave = () => {
     if (errors.length > 0) return;
     updateRule.mutate(
-      { ruleInstanceId: instance.id, data: { enabled, params } },
+      { ruleInstanceId: instance.id, data: { enabled, params, appliesTo } },
       {
         onSuccess: () => {
           toast({
@@ -179,6 +187,12 @@ function RuleInstanceEditor({
           This rule has no configurable settings.
         </p>
       )}
+
+      <RuleExclusionsEditor
+        value={appliesTo}
+        onChange={setAppliesTo}
+        tenantId={tenantId}
+      />
 
       {dirty && errors.length > 0 && (
         <div className="rounded-md border border-destructive/50 bg-destructive/5 p-3">

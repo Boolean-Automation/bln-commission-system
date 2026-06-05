@@ -5,7 +5,7 @@
  * Multi-tenant commission system API
  * OpenAPI spec version: 0.1.0
  */
-import type { RuleInstanceAppliesTo } from './ruleInstanceAppliesTo';
+import type { RuleAppliesTo } from './ruleAppliesTo';
 import type { RuleInstanceParams } from './ruleInstanceParams';
 
 export interface RuleInstance {
@@ -15,7 +15,7 @@ export interface RuleInstance {
   ruleModuleName: string;
   description: string;
   params: RuleInstanceParams;
-  appliesTo: RuleInstanceAppliesTo;
+  appliesTo: RuleAppliesTo;
   enabled: boolean;
   order: number;
 }
