@@ -2,6 +2,7 @@ import React from "react";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { Wallet, LogOut } from "lucide-react";
 import logoUrl from "@assets/channels4_profile_1780667990826.jpg";
 
@@ -22,6 +23,7 @@ export function RepView() {
         </div>
         <div className="flex items-center gap-3 text-sm text-muted-foreground">
           <span>{displayName}</span>
+          <ThemeToggle />
           <Button variant="ghost" size="sm" onClick={logout} className="gap-2">
             <LogOut className="h-4 w-4" />
             Sign out

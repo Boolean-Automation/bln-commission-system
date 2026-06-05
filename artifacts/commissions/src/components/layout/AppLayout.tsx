@@ -24,6 +24,7 @@ import {
   useSyncFromAirtable,
 } from "@workspace/api-client-react";
 import { TenantSwitcher } from "./TenantSwitcher";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { useAuthContext } from "@/contexts/AuthContext";
 import {
   DropdownMenu,
@@ -316,7 +317,10 @@ export function AppLayout({ children }: AppLayoutProps) {
             ) : (
               <div className="h-4 w-32 bg-muted animate-pulse rounded" />
             )}
-            <UserMenu />
+            <div className="flex items-center gap-1">
+              <ThemeToggle />
+              <UserMenu />
+            </div>
           </header>
           <div className="flex-1 overflow-auto p-6">
             {children}
