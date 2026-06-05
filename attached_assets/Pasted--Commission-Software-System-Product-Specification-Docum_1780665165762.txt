@@ -1,0 +1,202 @@
+# Commission Software System
+## Product Specification Document
+*For use by AI agent or development team*
+
+---
+
+## 1. Overview & Purpose
+
+This document specifies the functional and experiential requirements for a commission management software platform. The system must serve two distinct user types — sales representatives and administrators (RevOps / Finance teams) — and provide a single source of truth for compensation performance, commission calculations, and reporting.
+
+The primary goals of the platform are:
+
+- **Maximum transparency** for sales reps so they can understand precisely how their commissions are calculated
+- **Dispute reduction** by surfacing all underlying data and calculation logic
+- **Motivation** through real-time performance visibility, KPIs, and rankings
+- **Automation** of commission calculations for RevOps and Finance, replacing error-prone manual processes in spreadsheets
+- **No-code plan design** so compensation plans can be built and modified quickly without engineering support
+
+---
+
+## 2. User Types & Roles
+
+### 2.1 Sales Representative (End User)
+
+The sales rep is the primary end user consuming the output of the platform. Their experience should be centred on clarity and motivation.
+
+- Read-only access to their own commission data
+- Personal dashboard showing performance across KPI pairs
+- Access to detailed commission statements
+- Ability to raise disputes or questions via an in-platform discussion channel
+
+### 2.2 Administrator (RevOps / Finance)
+
+The admin is responsible for configuring the platform, building compensation plans, connecting data sources, and verifying commission outputs.
+
+- Full access to all sales rep statements and results
+- Ability to design and manage compensation plans
+- Data source integrations management
+- Target and quota input management
+- Reporting and analytics access
+
+---
+
+## 3. Sales Representative Experience
+
+### 3.1 Personal Dashboard
+
+The dashboard is the landing screen for the sales rep and must provide an at-a-glance view of their commission performance. It should include:
+
+- Performance view across different KPI pairs (e.g. quota attainment, revenue contribution)
+- Navigation to individual KPIs set by the admin — including but not limited to:
+  - Forecast and forecast acceleration curves
+  - Attainment percentages
+  - Ranking relative to peers
+- High-level commission summary for the current period
+- Clear period navigation (monthly, quarterly, annual)
+
+### 3.2 Commission Statements
+
+Each statement must follow a consistent structure and provide full transparency at every level of the calculation.
+
+| Section | Content |
+|---|---|
+| **Top** | Commission items listed individually (one row per bonus/incentive type) |
+| **Middle** | Transparent formula breakdown — the calculation logic shown for each item |
+| **Bottom** | All underlying deal/activity data used in the calculation (e.g. ARR, deal stage, close date) |
+| **Summary** | Clean synthesis of the total calculation, displayed above the detail |
+
+For CRM-connected data (e.g. Salesforce), the statement must surface:
+
+- Individual deal records with relevant fields (ARR, stage, close date, etc.)
+- Per-deal commission amount with the formula applied, visible inline
+- Overall commission total with a clear synthesis view
+
+### 3.3 Dispute & Discussion Channel
+
+Sales reps must be able to flag discrepancies or ask questions directly within the platform, attached to the relevant statement or line item. The channel should:
+
+- Be accessible directly from the statement view
+- Allow threaded conversation between the sales rep and the admin
+- Maintain a record of all disputes and their resolutions
+
+---
+
+## 4. Administrator Experience
+
+### 4.1 Data Source Integrations
+
+The platform must connect seamlessly to all relevant data sources. Required integrations include:
+
+- **CRM systems** — Salesforce (native integration required), HubSpot
+- **HR systems** — must support quota and role data from HRIS platforms
+- **Databases** — support for direct database connections for bespoke data pipelines
+
+### 4.2 Manual Input Values
+
+Alongside automated data sources, admins must be able to input key values manually, including:
+
+- Quotas and targets per sales rep
+- On-Target Earnings (OTE) values
+- Accelerator thresholds and multipliers
+- Any additional variables relevant to the comp plan
+
+### 4.3 Compensation Plan Design
+
+This is the core of the admin experience. Plans must be buildable in a no-code environment, enabling RevOps teams to create and modify compensation plans in minutes rather than hours.
+
+#### Step 1 — Compensation Plan Setup
+
+- Assign a validity date range (e.g. 1 January to 31 December)
+- Allocate the relevant employees to the plan
+- Define multiple compensation items within a single plan
+
+#### Step 2 — Compensation Item Configuration (Data Filtering & Formula Building)
+
+Each compensation item requires:
+
+- **Data filtering** using a no-code interface — e.g.:
+  - Owner = [statement employee]
+  - Close date = year to date
+  - Stage = Closed Won
+- **Formula builder** using `@` variable references — admins type `@` to surface any available variable and insert it into a calculation
+- **Conditional logic** support within the formula builder
+- **Forecast / weighting configuration** (e.g. including pipeline value at a weighted percentage)
+
+#### Step 3 — KPI Display Configuration
+
+After defining the calculation logic, admins select which KPIs from Step 2 are surfaced on the sales rep's dashboard. This is a clean synthesis view — admins select variables and metrics to display, which then appear on the rep's personal dashboard.
+
+#### Step 4 — Payout Variable Selection
+
+The admin selects the final variable(s) that determine the commission payout amount for each compensation item.
+
+#### Step 5 — Dashboard Configuration
+
+The admin defines which KPIs appear on the sales rep dashboard, mapping directly to the dashboard experience in Section 3.1. Setup should be simple — select the relevant metrics and they propagate automatically.
+
+### 4.4 Statement Verification & Approval
+
+Admins must have a full view of all statements across the organisation, with the ability to:
+
+- Drill into any individual statement to verify calculations
+- Cross-reference calculated amounts against the compensation plan definition
+- Request validation from sales reps (e.g. rep must acknowledge or sign off a statement)
+- Maintain an audit trail of changes and approvals
+
+---
+
+## 5. Reporting & Analytics
+
+Because the platform becomes the source of truth for sales performance data, it should also support performance reporting. Required capabilities:
+
+- Performance by region
+- Over- and under-performance analysis by cohort
+- Full performance ladder / leaderboard of Account Executives (AEs), showing who is overperforming vs underperforming against quota
+- Commission spend analysis (total commission liability by period, team, or individual)
+- Custom report builder — admins can select dimensions and metrics as needed
+
+---
+
+## 6. Non-Functional Requirements
+
+| Requirement | Description |
+|---|---|
+| **No-code operation** | All plan design, data filtering, and formula building must be achievable without writing code |
+| **Speed of setup** | A new compensation plan should be buildable within minutes, not hours |
+| **Data accuracy** | All calculations must be reproducible and auditable; the platform is the system of record |
+| **Transparency** | Every calculation step must be visible to both the sales rep and the admin |
+| **Dispute reduction** | The design of statements must proactively reduce ambiguity and disputes |
+| **Scalability** | Must support a growing sales team without performance degradation |
+| **Integration reliability** | CRM and HR integrations must sync reliably, with clear error states when data is missing |
+| **Role-based access** | Sales reps see only their own data; admins see all data |
+
+---
+
+## 7. Out of Scope (Initial Version)
+
+The following are explicitly out of scope for the initial version unless otherwise stated:
+
+- Payroll processing or direct payment disbursement
+- Tax calculation or deduction management
+- Custom mobile applications (web-responsive is sufficient)
+- AI-generated compensation plan recommendations
+
+---
+
+## 8. Glossary
+
+| Term | Definition |
+|---|---|
+| **Compensation Item** | A single rule or formula within a compensation plan that calculates one type of bonus or incentive |
+| **Compensation Plan** | The full set of compensation items and rules assigned to a group of employees for a given period |
+| **KPI Pair** | A combination of two metrics used to measure and display performance on the dashboard |
+| **OTE** | On-Target Earnings — the total expected compensation if the rep hits 100% of quota |
+| **Accelerator** | A multiplier that increases commission rate once a rep exceeds a quota threshold |
+| **ARR** | Annual Recurring Revenue — a common deal metric used in SaaS commission calculations |
+| **RevOps** | Revenue Operations — the team responsible for administering sales tools, data, and processes |
+| **Statement** | A period-specific summary of a sales rep's commission entitlement, including all supporting data |
+
+---
+
+*End of specification document.*

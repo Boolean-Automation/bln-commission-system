@@ -21,7 +21,6 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -37,16 +36,8 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { AirtableColumnCombobox } from "@/components/mapping/AirtableColumnCombobox";
 import { AlertCircle, Database } from "lucide-react";
-
-const NONE_VALUE = "__none__";
 
 export type FieldMappingEditorHandle = {
   /** Persist the current mapping. Resolves on success, rejects on error. */
@@ -158,12 +149,12 @@ export const FieldMappingEditor = forwardRef<
     [entitiesState, tenantId, queryClient, updateMapping],
   );
 
-  const handleTableChange = (entityIdx: number, tableId: string) => {
+  const handleTableChange = (entityIdx: number, tableName: string | null) => {
     setEntitiesState((prev) => {
-      if (prev[entityIdx]?.tableId === tableId) return prev;
+      if ((prev[entityIdx]?.tableName ?? null) === tableName) return prev;
       const draft = JSON.parse(JSON.stringify(prev)) as EntityMapping[];
       const entity = draft[entityIdx]!;
-      const table = tables?.find((t) => t.id === tableId);
+      const table = tables?.find((t) => t.name === tableName);
       entity.tableId = table?.id ?? null;
       entity.tableName = table?.name ?? null;
       // Columns differ between tables, so any prior field-to-column mappings no
@@ -247,28 +238,25 @@ export const FieldMappingEditor = forwardRef<
                   <Database className="w-4 h-4 text-muted-foreground" />
                   {entity.label} table in Airtable
                 </label>
-                <Select
-                  value={entity.tableId ?? ""}
-                  onValueChange={(v) => handleTableChange(eIdx, v)}
-                  disabled={!baseId}
-                >
-                  <SelectTrigger className="w-[320px]">
-                    <SelectValue
-                      placeholder={
-                        baseId
-                          ? "Select the source table…"
-                          : "Connect a base first"
-                      }
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {tables?.map((t) => (
-                      <SelectItem key={t.id} value={t.id}>
-                        {t.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="w-[320px]">
+                  <AirtableColumnCombobox
+                    value={entity.tableName ?? null}
+                    options={(tables ?? []).map((t) => ({
+                      name: t.name,
+                      type: "table",
+                    }))}
+                    placeholder={
+                      baseId
+                        ? "Select the source table…"
+                        : "Connect a base first"
+                    }
+                    emptyText="No tables found."
+                    searchPlaceholder="Search tables..."
+                    disabled={!baseId}
+                    onChange={(v) => handleTableChange(eIdx, v)}
+                    invalid={!entity.tableName}
+                  />
+                </div>
               </div>
               {!entity.tableName && (
                 <p className="text-xs text-destructive flex items-center gap-1.5 pb-2">
@@ -293,12 +281,6 @@ export const FieldMappingEditor = forwardRef<
                   </TableHeader>
                   <TableBody>
                     {entity.fields.map((field, fIdx) => {
-                      const hasColumns = columns.length > 0;
-                      const currentMissing =
-                        field.airtableFieldName &&
-                        !columns.some(
-                          (c) => c.name === field.airtableFieldName,
-                        );
                       return (
                         <TableRow
                           key={field.canonical}
@@ -327,78 +309,47 @@ export const FieldMappingEditor = forwardRef<
                             )}
                           </TableCell>
                           <TableCell>
-                            {hasColumns ? (
-                              <Select
-                                value={field.airtableFieldName ?? NONE_VALUE}
-                                onValueChange={(v) => {
-                                  if (v === NONE_VALUE) {
-                                    handleFieldChange(eIdx, fIdx, "", null);
-                                  } else {
-                                    const col = columns.find(
-                                      (c) => c.name === v,
-                                    );
-                                    handleFieldChange(
-                                      eIdx,
-                                      fIdx,
-                                      v,
-                                      col?.id ?? null,
-                                    );
-                                  }
-                                }}
-                              >
-                                <SelectTrigger
-                                  className={`font-mono text-sm ${
-                                    field.required && !field.mapped
-                                      ? "border-destructive bg-destructive/5"
-                                      : field.mapped
-                                        ? "border-primary/20"
-                                        : ""
-                                  }`}
-                                >
-                                  <SelectValue placeholder="Select a column…" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value={NONE_VALUE}>
-                                    — Not mapped —
-                                  </SelectItem>
-                                  {currentMissing && (
-                                    <SelectItem
-                                      value={field.airtableFieldName!}
-                                    >
-                                      {field.airtableFieldName} (missing)
-                                    </SelectItem>
-                                  )}
-                                  {columns.map((c) => (
-                                    <SelectItem key={c.id} value={c.name}>
-                                      {c.name}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            ) : (
-                              <div className="relative">
-                                <Input
-                                  value={field.airtableFieldName || ""}
-                                  onChange={(e) =>
-                                    handleFieldChange(
-                                      eIdx,
-                                      fIdx,
-                                      e.target.value,
-                                      null,
-                                    )
-                                  }
-                                  placeholder="Exact column name…"
-                                  className={`font-mono text-sm bg-transparent transition-colors ${
-                                    field.required && !field.mapped
-                                      ? "border-destructive focus-visible:ring-destructive/20 bg-destructive/5"
-                                      : ""
-                                  } ${field.mapped ? "border-primary/20" : ""}`}
-                                />
-                                {field.required && !field.mapped && (
-                                  <AlertCircle className="w-4 h-4 text-destructive absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                                )}
-                              </div>
-                            )}
+                            <AirtableColumnCombobox
+                              value={field.airtableFieldName ?? null}
+                              options={columns.map((c) => ({
+                                name: c.name,
+                                type: c.type,
+                              }))}
+                              placeholder={
+                                entity.tableName
+                                  ? "Select a column…"
+                                  : "Select a table first"
+                              }
+                              emptyText={
+                                entity.tableName
+                                  ? "No matching columns."
+                                  : "Select a table first."
+                              }
+                              searchPlaceholder="Search columns..."
+                              allowClear={!field.required}
+                              disabled={!entity.tableName}
+                              onChange={(v) => {
+                                if (!v) {
+                                  handleFieldChange(eIdx, fIdx, "", null);
+                                } else {
+                                  const col = columns.find(
+                                    (c) => c.name === v,
+                                  );
+                                  handleFieldChange(
+                                    eIdx,
+                                    fIdx,
+                                    v,
+                                    col?.id ?? null,
+                                  );
+                                }
+                              }}
+                              invalid={field.required && !field.mapped}
+                              className={
+                                field.mapped && !(field.required && !field.mapped)
+                                  ? "border-primary/20"
+                                  : undefined
+                              }
+                            />
                           </TableCell>
                         </TableRow>
                       );

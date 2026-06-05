@@ -26,139 +26,16 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
-import {
-  Check,
-  ChevronsUpDown,
   Database,
   AlertCircle,
   RefreshCw,
   Save,
   Settings2,
-  X,
 } from "lucide-react";
-
-type ColumnOption = { name: string; type: string };
-
-function Combobox({
-  value,
-  options,
-  placeholder,
-  emptyText,
-  allowClear,
-  disabled,
-  onChange,
-  invalid,
-}: {
-  value: string | null;
-  options: ColumnOption[];
-  placeholder: string;
-  emptyText: string;
-  allowClear?: boolean;
-  disabled?: boolean;
-  onChange: (value: string | null) => void;
-  invalid?: boolean;
-}) {
-  const [open, setOpen] = useState(false);
-  const known = value ? options.some((o) => o.name === value) : true;
-
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          role="combobox"
-          aria-expanded={open}
-          disabled={disabled}
-          className={`w-full justify-between font-mono text-sm font-normal ${
-            invalid ? "border-destructive bg-destructive/5" : ""
-          } ${!value ? "text-muted-foreground" : ""}`}
-        >
-          <span className="truncate">{value || placeholder}</span>
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent
-        className="w-[var(--radix-popover-trigger-width)] p-0"
-        align="start"
-      >
-        <Command>
-          <CommandInput placeholder="Search columns..." />
-          <CommandList>
-            <CommandEmpty>{emptyText}</CommandEmpty>
-            {allowClear && value && (
-              <CommandGroup>
-                <CommandItem
-                  value="__clear__"
-                  onSelect={() => {
-                    onChange(null);
-                    setOpen(false);
-                  }}
-                  className="text-muted-foreground"
-                >
-                  <X className="mr-2 h-4 w-4" />
-                  Clear mapping
-                </CommandItem>
-              </CommandGroup>
-            )}
-            <CommandGroup>
-              {!known && value && (
-                <CommandItem
-                  value={value}
-                  onSelect={() => setOpen(false)}
-                  className="opacity-70"
-                >
-                  <Check className="mr-2 h-4 w-4 opacity-100" />
-                  <span className="truncate font-mono">{value}</span>
-                  <Badge
-                    variant="outline"
-                    className="ml-auto text-[10px] uppercase"
-                  >
-                    not in table
-                  </Badge>
-                </CommandItem>
-              )}
-              {options.map((opt) => (
-                <CommandItem
-                  key={opt.name}
-                  value={opt.name}
-                  onSelect={() => {
-                    onChange(opt.name);
-                    setOpen(false);
-                  }}
-                >
-                  <Check
-                    className={`mr-2 h-4 w-4 ${
-                      value === opt.name ? "opacity-100" : "opacity-0"
-                    }`}
-                  />
-                  <span className="truncate font-mono">{opt.name}</span>
-                  <Badge
-                    variant="outline"
-                    className="ml-auto text-[10px] uppercase tracking-wider"
-                  >
-                    {opt.type}
-                  </Badge>
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
-  );
-}
+import {
+  AirtableColumnCombobox,
+  type ColumnOption,
+} from "@/components/mapping/AirtableColumnCombobox";
 
 export function PeopleSourceMappingSheet({ tenantId }: { tenantId: string }) {
   const queryClient = useQueryClient();
@@ -378,13 +255,14 @@ export function PeopleSourceMappingSheet({ tenantId }: { tenantId: string }) {
           <div className="flex-1 mt-2 space-y-6">
             <div className="space-y-2">
               <label className="text-sm font-medium">Source Table</label>
-              <Combobox
+              <AirtableColumnCombobox
                 value={person.tableName ?? null}
                 options={tableNames}
                 placeholder={
                   tablesLoading ? "Loading tables..." : "Select a table..."
                 }
                 emptyText="No tables found."
+                searchPlaceholder="Search tables..."
                 disabled={tablesLoading}
                 onChange={setTableName}
                 invalid={!person.tableName}
@@ -420,7 +298,7 @@ export function PeopleSourceMappingSheet({ tenantId }: { tenantId: string }) {
                         {field.canonical}
                       </div>
                     </div>
-                    <Combobox
+                    <AirtableColumnCombobox
                       value={field.airtableFieldName ?? null}
                       options={columnOptions}
                       placeholder="— Unmapped —"
@@ -429,6 +307,7 @@ export function PeopleSourceMappingSheet({ tenantId }: { tenantId: string }) {
                           ? "No matching columns."
                           : "Select a table first."
                       }
+                      searchPlaceholder="Search columns..."
                       allowClear={!field.required}
                       disabled={!person.tableName}
                       onChange={(v) => setFieldColumn(idx, v)}
