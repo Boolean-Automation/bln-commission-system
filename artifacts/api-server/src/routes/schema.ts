@@ -8,9 +8,12 @@ import {
   UpdateSchemaMappingBody,
   UpdateSchemaMappingResponse,
 } from "@workspace/api-zod";
+import { requireTenantAccess } from "../lib/rbac";
 import { serializeMapping } from "../lib/serialize";
 
 const router: IRouter = Router();
+
+router.use("/tenants/:tenantId", requireTenantAccess);
 
 router.get(
   "/tenants/:tenantId/schema-mapping",

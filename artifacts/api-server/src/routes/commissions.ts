@@ -24,8 +24,11 @@ import {
 } from "@workspace/api-zod";
 import { serializeEntry, serializeEvent } from "../lib/serialize";
 import { recomputeTenant } from "../lib/engine";
+import { requireTenantAccess, hasTenantAccess } from "../lib/rbac";
 
 const router: IRouter = Router();
+
+router.use("/tenants/:tenantId", requireTenantAccess);
 
 const STATE_TIMESTAMP: Record<string, "accruedAt" | "payableAt" | "paidAt" | "clawedBackAt" | null> = {
   accrued: "accruedAt",
@@ -108,6 +111,10 @@ router.get("/commissions/:entryId", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Commission entry not found" });
     return;
   }
+  if (!hasTenantAccess(req.authContext!, entry.tenantId)) {
+    res.status(403).json({ error: "You do not have access to this company" });
+    return;
+  }
   res.json(GetCommissionResponse.parse(serializeEntry(entry)));
 });
 
@@ -128,6 +135,10 @@ router.patch("/commissions/:entryId", async (req, res): Promise<void> => {
     .where(eq(commissionEntriesTable.id, params.data.entryId));
   if (!entry) {
     res.status(404).json({ error: "Commission entry not found" });
+    return;
+  }
+  if (!hasTenantAccess(req.authContext!, entry.tenantId)) {
+    res.status(403).json({ error: "You do not have access to this company" });
     return;
   }
   const set: Record<string, unknown> = {};
@@ -173,6 +184,10 @@ router.post(
       res.status(404).json({ error: "Commission entry not found" });
       return;
     }
+    if (!hasTenantAccess(req.authContext!, entry.tenantId)) {
+      res.status(403).json({ error: "You do not have access to this company" });
+      return;
+    }
     const toState = body.data.toState;
     if (toState === entry.state) {
       res
@@ -207,6 +222,18 @@ router.get("/commissions/:entryId/events", async (req, res): Promise<void> => {
   const params = GetCommissionEventsParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const [entry] = await db
+    .select({ tenantId: commissionEntriesTable.tenantId })
+    .from(commissionEntriesTable)
+    .where(eq(commissionEntriesTable.id, params.data.entryId));
+  if (!entry) {
+    res.status(404).json({ error: "Commission entry not found" });
+    return;
+  }
+  if (!hasTenantAccess(req.authContext!, entry.tenantId)) {
+    res.status(403).json({ error: "You do not have access to this company" });
     return;
   }
   const events = await db

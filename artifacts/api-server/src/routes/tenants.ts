@@ -27,6 +27,7 @@ import {
 import { serializeTenant, isMappingComplete } from "../lib/serialize";
 import { tenantCounts } from "../lib/tenantCounts";
 import { defaultEntityMappings } from "../lib/defaultSchemaMapping";
+import { requireOperator, requireTenantAccess, hasTenantAccess } from "../lib/rbac";
 
 const router: IRouter = Router();
 
@@ -42,11 +43,16 @@ function slugify(name: string): string {
     .slice(0, 60);
 }
 
-router.get("/tenants", async (_req, res): Promise<void> => {
-  const tenants = await db
+router.get("/tenants", async (req, res): Promise<void> => {
+  // Operators see every company; admins see only the companies they belong to.
+  const ctx = req.authContext!;
+  const allTenants = await db
     .select()
     .from(tenantsTable)
     .orderBy(tenantsTable.name);
+  const tenants = ctx.isPlatformOperator
+    ? allTenants
+    : allTenants.filter((t) => hasTenantAccess(ctx, t.id));
   const mappings = await db.select().from(schemaMappingsTable);
   const mappingByTenant = new Map(mappings.map((m) => [m.tenantId, m]));
   const enriched = await Promise.all(
@@ -61,7 +67,7 @@ router.get("/tenants", async (_req, res): Promise<void> => {
   res.json(ListTenantsResponse.parse(enriched));
 });
 
-router.post("/tenants", async (req, res): Promise<void> => {
+router.post("/tenants", requireOperator, async (req, res): Promise<void> => {
   const body = CreateTenantBody.safeParse(req.body);
   if (!body.success) {
     res.status(400).json({ error: body.error.message });
@@ -116,7 +122,7 @@ router.post("/tenants", async (req, res): Promise<void> => {
   );
 });
 
-router.get("/tenants/:tenantId", async (req, res): Promise<void> => {
+router.get("/tenants/:tenantId", requireTenantAccess, async (req, res): Promise<void> => {
   const params = GetTenantParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -145,7 +151,7 @@ router.get("/tenants/:tenantId", async (req, res): Promise<void> => {
   );
 });
 
-router.patch("/tenants/:tenantId", async (req, res): Promise<void> => {
+router.patch("/tenants/:tenantId", requireTenantAccess, async (req, res): Promise<void> => {
   const params = UpdateTenantParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -190,7 +196,7 @@ router.patch("/tenants/:tenantId", async (req, res): Promise<void> => {
   );
 });
 
-router.delete("/tenants/:tenantId", async (req, res): Promise<void> => {
+router.delete("/tenants/:tenantId", requireOperator, async (req, res): Promise<void> => {
   const params = DeleteTenantParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });

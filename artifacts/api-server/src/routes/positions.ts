@@ -13,9 +13,12 @@ import {
   DeletePositionParams,
   DeletePositionResponse,
 } from "@workspace/api-zod";
+import { requireTenantAccess } from "../lib/rbac";
 import { serializePosition } from "../lib/serialize";
 
 const router: IRouter = Router();
+
+router.use("/tenants/:tenantId", requireTenantAccess);
 
 router.get("/tenants/:tenantId/positions", async (req, res): Promise<void> => {
   const params = ListPositionsParams.safeParse(req.params);

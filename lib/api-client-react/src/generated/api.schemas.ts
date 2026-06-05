@@ -13,6 +13,122 @@ export interface Error {
   error: string;
 }
 
+export interface AuthUser {
+  id: string;
+  /** @nullable */
+  email: string | null;
+  /** @nullable */
+  firstName: string | null;
+  /** @nullable */
+  lastName: string | null;
+  /** @nullable */
+  profileImageUrl: string | null;
+}
+
+export interface AuthUserEnvelope {
+  user: AuthUser | null;
+}
+
+export interface MobileTokenExchangeRequest {
+  /** @minLength 1 */
+  code: string;
+  /** @minLength 1 */
+  code_verifier: string;
+  /** @minLength 1 */
+  redirect_uri: string;
+  /** @minLength 1 */
+  state: string;
+  /** @minLength 1 */
+  nonce?: string;
+}
+
+export interface MobileTokenExchangeSuccess {
+  token: string;
+}
+
+export const LogoutSuccessValue = {
+  success: true,
+} as const;
+export type LogoutSuccess = typeof LogoutSuccessValue;
+
+export interface ErrorEnvelope {
+  error: string;
+}
+
+export type MembershipRole = typeof MembershipRole[keyof typeof MembershipRole];
+
+
+export const MembershipRole = {
+  platform_operator: 'platform_operator',
+  admin: 'admin',
+  rep: 'rep',
+} as const;
+
+export interface Membership {
+  id: string;
+  userId: string;
+  role: MembershipRole;
+  /** @nullable */
+  tenantId: string | null;
+  /** @nullable */
+  personId: string | null;
+  createdAt: string;
+  /** @nullable */
+  userEmail?: string | null;
+  /** @nullable */
+  userName?: string | null;
+  /** @nullable */
+  personName?: string | null;
+}
+
+export type MembershipInputRole = typeof MembershipInputRole[keyof typeof MembershipInputRole];
+
+
+export const MembershipInputRole = {
+  admin: 'admin',
+  rep: 'rep',
+} as const;
+
+export interface MembershipInput {
+  userId: string;
+  role: MembershipInputRole;
+  /** @nullable */
+  personId?: string | null;
+}
+
+export type MembershipUpdateRole = typeof MembershipUpdateRole[keyof typeof MembershipUpdateRole];
+
+
+export const MembershipUpdateRole = {
+  admin: 'admin',
+  rep: 'rep',
+} as const;
+
+export interface MembershipUpdate {
+  role?: MembershipUpdateRole;
+  /** @nullable */
+  personId?: string | null;
+}
+
+export interface DeleteMembershipResult {
+  id: string;
+  deleted: boolean;
+}
+
+export interface AccessibleTenant {
+  id: string;
+  name: string;
+  slug: string;
+  role: MembershipRole;
+}
+
+export interface AuthContext {
+  user: AuthUser | null;
+  isPlatformOperator: boolean;
+  memberships: Membership[];
+  accessibleTenants: AccessibleTenant[];
+}
+
 export interface Position {
   id: string;
   tenantId: string;
@@ -496,6 +612,24 @@ export type BadRequestResponse = Error;
  * Operation not permitted
  */
 export type ForbiddenResponse = Error;
+
+/**
+ * Opaque session token — `Bearer <sid>`.
+ */
+export type AuthorizationSessionHeaderParameter = string;
+
+export type BeginBrowserLoginParams = {
+/**
+ * Relative path to redirect to after login (must start with `/`). Defaults to `/`.
+ */
+returnTo?: string;
+};
+
+export type HandleBrowserLoginCallbackParams = {
+code?: string;
+state?: string;
+iss?: string;
+};
 
 export type GetActivityParams = {
 limit?: number;

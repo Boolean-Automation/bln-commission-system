@@ -15,10 +15,13 @@ import { listBases, getBaseTables } from "../lib/airtable";
 import { syncTenantFromAirtable } from "../lib/airtableSync";
 import { serializeTenant, isMappingComplete } from "../lib/serialize";
 import { tenantCounts } from "../lib/tenantCounts";
+import { requireTenantAccess, requireStaff } from "../lib/rbac";
 
 const router: IRouter = Router();
 
-router.get("/airtable/bases", async (req, res): Promise<void> => {
+router.use("/tenants/:tenantId", requireTenantAccess);
+
+router.get("/airtable/bases", requireStaff, async (req, res): Promise<void> => {
   try {
     const bases = await listBases();
     res.json(ListAirtableBasesResponse.parse(bases));
@@ -32,6 +35,7 @@ router.get("/airtable/bases", async (req, res): Promise<void> => {
 
 router.get(
   "/airtable/bases/:baseId/tables",
+  requireStaff,
   async (req, res): Promise<void> => {
     const params = GetAirtableTablesParams.safeParse(req.params);
     if (!params.success) {

@@ -23,8 +23,21 @@ import {
 import { RULE_MODULES, RULE_MODULE_BY_KEY } from "../lib/ruleCatalog";
 import { serializePlan, serializeRuleInstance } from "../lib/serialize";
 import { validateRuleParams } from "@workspace/rule-validation";
+import { requireTenantAccess, requireStaff, hasTenantAccess } from "../lib/rbac";
 
 const router: IRouter = Router();
+
+router.use("/tenants/:tenantId", requireTenantAccess);
+
+// Resolve the tenant that owns a rule instance (via its plan). Used to scope the
+// by-id routes, which carry no tenantId in the path.
+async function ruleInstanceTenantId(planId: string): Promise<string | null> {
+  const [plan] = await db
+    .select({ tenantId: commissionPlansTable.tenantId })
+    .from(commissionPlansTable)
+    .where(eq(commissionPlansTable.id, planId));
+  return plan?.tenantId ?? null;
+}
 
 async function loadPlanWithInstances(planId: string) {
   const [plan] = await db
@@ -39,7 +52,7 @@ async function loadPlanWithInstances(planId: string) {
   return { plan, instances };
 }
 
-router.get("/rule-modules", async (_req, res): Promise<void> => {
+router.get("/rule-modules", requireStaff, async (_req, res): Promise<void> => {
   res.json(ListRuleModulesResponse.parse(RULE_MODULES));
 });
 
@@ -219,6 +232,11 @@ router.patch(
       res.status(404).json({ error: "Rule instance not found" });
       return;
     }
+    const tenantId = await ruleInstanceTenantId(existing.planId);
+    if (!tenantId || !hasTenantAccess(req.authContext!, tenantId)) {
+      res.status(403).json({ error: "You do not have access to this company" });
+      return;
+    }
 
     const set: Record<string, unknown> = {};
     if (body.data.params !== undefined) {
@@ -262,14 +280,22 @@ router.delete(
       res.status(400).json({ error: params.error.message });
       return;
     }
-    const [deleted] = await db
-      .delete(ruleInstancesTable)
-      .where(eq(ruleInstancesTable.id, params.data.ruleInstanceId))
-      .returning();
-    if (!deleted) {
+    const [existing] = await db
+      .select()
+      .from(ruleInstancesTable)
+      .where(eq(ruleInstancesTable.id, params.data.ruleInstanceId));
+    if (!existing) {
       res.status(404).json({ error: "Rule instance not found" });
       return;
     }
+    const tenantId = await ruleInstanceTenantId(existing.planId);
+    if (!tenantId || !hasTenantAccess(req.authContext!, tenantId)) {
+      res.status(403).json({ error: "You do not have access to this company" });
+      return;
+    }
+    await db
+      .delete(ruleInstancesTable)
+      .where(eq(ruleInstancesTable.id, params.data.ruleInstanceId));
     res.status(204).end();
   },
 );

@@ -9,6 +9,217 @@ import * as zod from 'zod';
 
 
 /**
+ * @summary Get the currently authenticated user
+ */
+export const GetCurrentAuthUserHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+export const GetCurrentAuthUserResponse = zod.object({
+  "user": zod.union([zod.object({
+  "id": zod.string(),
+  "email": zod.string().email().nullable(),
+  "firstName": zod.string().nullable(),
+  "lastName": zod.string().nullable(),
+  "profileImageUrl": zod.string().nullable()
+}),zod.null()])
+})
+
+
+/**
+ * @summary Start the browser OIDC login flow
+ */
+export const BeginBrowserLoginQueryParams = zod.object({
+  "returnTo": zod.coerce.string().optional().describe('Relative path to redirect to after login (must start with `\/`). Defaults to `\/`.')
+})
+
+
+/**
+ * @summary Complete the browser OIDC login flow
+ */
+export const HandleBrowserLoginCallbackQueryParams = zod.object({
+  "code": zod.coerce.string().optional(),
+  "state": zod.coerce.string().optional(),
+  "iss": zod.coerce.string().url().optional()
+})
+
+
+/**
+ * @summary Clear the session and begin OIDC logout
+ */
+export const LogoutBrowserSessionHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+
+/**
+ * @summary Exchange a mobile OIDC code for a session token
+ */
+
+
+
+
+
+
+
+export const ExchangeMobileAuthorizationCodeBody = zod.object({
+  "code": zod.string().min(1),
+  "code_verifier": zod.string().min(1),
+  "redirect_uri": zod.string().url().min(1),
+  "state": zod.string().min(1),
+  "nonce": zod.string().min(1).optional()
+})
+
+export const ExchangeMobileAuthorizationCodeResponse = zod.object({
+  "token": zod.string()
+})
+
+
+/**
+ * @summary Delete a mobile session token
+ */
+export const LogoutMobileSessionHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+export const LogoutMobileSessionResponse = zod.object({
+  "success": zod.boolean()
+})
+
+
+/**
+ * @summary Get the current user's roles, memberships, and accessible tenants
+ */
+export const GetAuthContextResponse = zod.object({
+  "user": zod.union([zod.object({
+  "id": zod.string(),
+  "email": zod.string().email().nullable(),
+  "firstName": zod.string().nullable(),
+  "lastName": zod.string().nullable(),
+  "profileImageUrl": zod.string().nullable()
+}),zod.null()]),
+  "isPlatformOperator": zod.boolean(),
+  "memberships": zod.array(zod.object({
+  "id": zod.string(),
+  "userId": zod.string(),
+  "role": zod.enum(['platform_operator', 'admin', 'rep']),
+  "tenantId": zod.string().nullable(),
+  "personId": zod.string().nullable(),
+  "createdAt": zod.string(),
+  "userEmail": zod.string().nullish(),
+  "userName": zod.string().nullish(),
+  "personName": zod.string().nullish()
+})),
+  "accessibleTenants": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "role": zod.enum(['platform_operator', 'admin', 'rep'])
+}))
+})
+
+
+/**
+ * @summary List all authenticated users (platform operator only)
+ */
+export const ListUsersResponseItem = zod.object({
+  "id": zod.string(),
+  "email": zod.string().email().nullable(),
+  "firstName": zod.string().nullable(),
+  "lastName": zod.string().nullable(),
+  "profileImageUrl": zod.string().nullable()
+})
+export const ListUsersResponse = zod.array(ListUsersResponseItem)
+
+
+/**
+ * @summary List memberships for a tenant
+ */
+export const ListTenantMembersParams = zod.object({
+  "tenantId": zod.coerce.string()
+})
+
+export const ListTenantMembersResponseItem = zod.object({
+  "id": zod.string(),
+  "userId": zod.string(),
+  "role": zod.enum(['platform_operator', 'admin', 'rep']),
+  "tenantId": zod.string().nullable(),
+  "personId": zod.string().nullable(),
+  "createdAt": zod.string(),
+  "userEmail": zod.string().nullish(),
+  "userName": zod.string().nullish(),
+  "personName": zod.string().nullish()
+})
+export const ListTenantMembersResponse = zod.array(ListTenantMembersResponseItem)
+
+
+/**
+ * @summary Assign a user as an admin or rep for the tenant
+ */
+export const CreateTenantMemberParams = zod.object({
+  "tenantId": zod.coerce.string()
+})
+
+export const CreateTenantMemberBody = zod.object({
+  "userId": zod.string(),
+  "role": zod.enum(['admin', 'rep']),
+  "personId": zod.string().nullish()
+})
+
+export const CreateTenantMemberResponse = zod.object({
+  "id": zod.string(),
+  "userId": zod.string(),
+  "role": zod.enum(['platform_operator', 'admin', 'rep']),
+  "tenantId": zod.string().nullable(),
+  "personId": zod.string().nullable(),
+  "createdAt": zod.string(),
+  "userEmail": zod.string().nullish(),
+  "userName": zod.string().nullish(),
+  "personName": zod.string().nullish()
+})
+
+
+/**
+ * @summary Update a membership's role or linked person
+ */
+export const UpdateTenantMemberParams = zod.object({
+  "tenantId": zod.coerce.string(),
+  "membershipId": zod.coerce.string()
+})
+
+export const UpdateTenantMemberBody = zod.object({
+  "role": zod.enum(['admin', 'rep']).optional(),
+  "personId": zod.string().nullish()
+})
+
+export const UpdateTenantMemberResponse = zod.object({
+  "id": zod.string(),
+  "userId": zod.string(),
+  "role": zod.enum(['platform_operator', 'admin', 'rep']),
+  "tenantId": zod.string().nullable(),
+  "personId": zod.string().nullable(),
+  "createdAt": zod.string(),
+  "userEmail": zod.string().nullish(),
+  "userName": zod.string().nullish(),
+  "personName": zod.string().nullish()
+})
+
+
+/**
+ * @summary Remove a membership
+ */
+export const DeleteTenantMemberParams = zod.object({
+  "tenantId": zod.coerce.string(),
+  "membershipId": zod.coerce.string()
+})
+
+export const DeleteTenantMemberResponse = zod.object({
+  "id": zod.string(),
+  "deleted": zod.boolean()
+})
+
+
+/**
  * Returns server health status
  * @summary Health check
  */

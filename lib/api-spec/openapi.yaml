@@ -24,7 +24,241 @@ tags:
     description: Commission ledger
   - name: insights
     description: Dashboard summaries and activity
+  - name: Auth
+    description: Browser and mobile authentication endpoints.
+  - name: access
+    description: User access and role management (RBAC)
 paths:
+  /auth/user:
+    get:
+      tags: [Auth]
+      operationId: getCurrentAuthUser
+      summary: Get the currently authenticated user
+      parameters:
+        - $ref: '#/components/parameters/AuthorizationSessionHeader'
+        - $ref: '#/components/parameters/SessionCookie'
+      responses:
+        '200':
+          description: Auth status resolved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthUserEnvelope'
+  /login:
+    get:
+      tags: [Auth]
+      operationId: beginBrowserLogin
+      summary: Start the browser OIDC login flow
+      parameters:
+        - name: returnTo
+          in: query
+          required: false
+          description: Relative path to redirect to after login (must start with `/`). Defaults to `/`.
+          schema:
+            type: string
+      responses:
+        '302':
+          description: Redirect to the OIDC authorization endpoint.
+  /callback:
+    get:
+      tags: [Auth]
+      operationId: handleBrowserLoginCallback
+      summary: Complete the browser OIDC login flow
+      parameters:
+        - name: code
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: state
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: iss
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uri
+      responses:
+        '302':
+          description: Redirect to the `returnTo` path on success (defaults to `/`) or `/api/login` on failure.
+  /logout:
+    get:
+      tags: [Auth]
+      operationId: logoutBrowserSession
+      summary: Clear the session and begin OIDC logout
+      parameters:
+        - $ref: '#/components/parameters/AuthorizationSessionHeader'
+        - $ref: '#/components/parameters/SessionCookie'
+      responses:
+        '302':
+          description: Redirect to the OIDC provider logout URL.
+  /mobile-auth/token-exchange:
+    post:
+      tags: [Auth]
+      operationId: exchangeMobileAuthorizationCode
+      summary: Exchange a mobile OIDC code for a session token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MobileTokenExchangeRequest'
+      responses:
+        '200':
+          description: Session created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MobileTokenExchangeSuccess'
+        '400':
+          description: Missing or invalid required fields.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Token did not contain usable claims.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '500':
+          description: Token exchange failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /mobile-auth/logout:
+    post:
+      tags: [Auth]
+      operationId: logoutMobileSession
+      summary: Delete a mobile session token
+      parameters:
+        - $ref: '#/components/parameters/AuthorizationSessionHeader'
+      responses:
+        '200':
+          description: Logout processed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LogoutSuccess'
+  /me:
+    get:
+      tags: [access]
+      operationId: getAuthContext
+      summary: Get the current user's roles, memberships, and accessible tenants
+      responses:
+        "200":
+          description: Resolved RBAC context for the current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthContext"
+  /users:
+    get:
+      tags: [access]
+      operationId: listUsers
+      summary: List all authenticated users (platform operator only)
+      responses:
+        "200":
+          description: Users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AuthUser"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /tenants/{tenantId}/members:
+    get:
+      tags: [access]
+      operationId: listTenantMembers
+      summary: List memberships for a tenant
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+      responses:
+        "200":
+          description: Memberships
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Membership"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      tags: [access]
+      operationId: createTenantMember
+      summary: Assign a user as an admin or rep for the tenant
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MembershipInput"
+      responses:
+        "200":
+          description: Created membership
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Membership"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /tenants/{tenantId}/members/{membershipId}:
+    patch:
+      tags: [access]
+      operationId: updateTenantMember
+      summary: Update a membership's role or linked person
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+        - $ref: "#/components/parameters/MembershipId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MembershipUpdate"
+      responses:
+        "200":
+          description: Updated membership
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Membership"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      tags: [access]
+      operationId: deleteTenantMember
+      summary: Remove a membership
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+        - $ref: "#/components/parameters/MembershipId"
+      responses:
+        "200":
+          description: Deleted membership
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteMembershipResult"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /healthz:
     get:
       operationId: healthCheck
@@ -687,6 +921,26 @@ components:
       required: true
       schema:
         type: string
+    MembershipId:
+      name: membershipId
+      in: path
+      required: true
+      schema:
+        type: string
+    AuthorizationSessionHeader:
+      name: Authorization
+      in: header
+      required: false
+      description: Opaque session token — `Bearer <sid>`.
+      schema:
+        type: string
+    SessionCookie:
+      name: sid
+      in: cookie
+      required: false
+      description: Browser session cookie.
+      schema:
+        type: string
   responses:
     NotFound:
       description: Resource not found
@@ -721,6 +975,158 @@ components:
       properties:
         error:
           type: string
+
+    AuthUser:
+      type: object
+      required: [id, email, firstName, lastName, profileImageUrl]
+      properties:
+        id:
+          type: string
+        email:
+          type: [string, 'null']
+          format: email
+        firstName:
+          type: [string, 'null']
+        lastName:
+          type: [string, 'null']
+        profileImageUrl:
+          type: [string, 'null']
+    AuthUserEnvelope:
+      type: object
+      required: [user]
+      properties:
+        user:
+          oneOf:
+            - $ref: '#/components/schemas/AuthUser'
+            - type: 'null'
+    MobileTokenExchangeRequest:
+      type: object
+      required: [code, code_verifier, redirect_uri, state]
+      properties:
+        code:
+          type: string
+          minLength: 1
+        code_verifier:
+          type: string
+          minLength: 1
+        redirect_uri:
+          type: string
+          minLength: 1
+          format: uri
+        state:
+          type: string
+          minLength: 1
+        nonce:
+          type: string
+          minLength: 1
+    MobileTokenExchangeSuccess:
+      type: object
+      required: [token]
+      properties:
+        token:
+          type: string
+    LogoutSuccess:
+      type: object
+      required: [success]
+      properties:
+        success:
+          type: boolean
+          const: true
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+
+    MembershipRole:
+      type: string
+      enum: [platform_operator, admin, rep]
+
+    Membership:
+      type: object
+      required: [id, userId, role, tenantId, personId, createdAt]
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        role:
+          $ref: "#/components/schemas/MembershipRole"
+        tenantId:
+          type: [string, 'null']
+        personId:
+          type: [string, 'null']
+        createdAt:
+          type: string
+        userEmail:
+          type: [string, 'null']
+        userName:
+          type: [string, 'null']
+        personName:
+          type: [string, 'null']
+
+    MembershipInput:
+      type: object
+      required: [userId, role]
+      properties:
+        userId:
+          type: string
+        role:
+          type: string
+          enum: [admin, rep]
+        personId:
+          type: [string, 'null']
+
+    MembershipUpdate:
+      type: object
+      properties:
+        role:
+          type: string
+          enum: [admin, rep]
+        personId:
+          type: [string, 'null']
+
+    DeleteMembershipResult:
+      type: object
+      required: [id, deleted]
+      properties:
+        id:
+          type: string
+        deleted:
+          type: boolean
+
+    AccessibleTenant:
+      type: object
+      required: [id, name, slug, role]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        slug:
+          type: string
+        role:
+          $ref: "#/components/schemas/MembershipRole"
+
+    AuthContext:
+      type: object
+      required: [user, isPlatformOperator, memberships, accessibleTenants]
+      properties:
+        user:
+          oneOf:
+            - $ref: '#/components/schemas/AuthUser'
+            - type: 'null'
+        isPlatformOperator:
+          type: boolean
+        memberships:
+          type: array
+          items:
+            $ref: "#/components/schemas/Membership"
+        accessibleTenants:
+          type: array
+          items:
+            $ref: "#/components/schemas/AccessibleTenant"
 
     Position:
       type: object

@@ -1,5 +1,6 @@
 - [Commission engine conventions](commission-engine.md) — custom rules emit type "MSC"; percent params stored as decimals (display ×100); rule catalog is form-driven metadata, no raw JSON.
 - [Onboarding wizard e2e testing](onboarding-e2e-testing.md) — drive wizard via runTest; add Tiered YTD Rate (default) to guarantee ledger entries; sync is slow (~20-40s); cleanup deletes children first; never touch live Paragon tenant.
 - [Tenant cascade delete](tenant-lifecycle.md) — no DB-level FK cascades; tenant delete must remove all dependent rows in one explicit transaction (rule_instances link via plans).
+- [Auth + RBAC](auth-rbac.md) — header-origin & missing-expires_at-valid are intentional replit-auth template patterns (don't "fix"); operator bootstrap needs a partial unique index; admin is never auto-provisioned.
 - [Per-rule exclusions](rule-exclusions.md) — stored on rule_instances.appliesTo; one cross-cutting engine check covers all modules; role UI = positions, engine also matches role codes.
 - [shadcn Select clear sentinel](shadcn-select-clear-sentinel.md) — to model "clear/Any" + arbitrary user-named options, prefix real values (`v:`) and use a separate clear sentinel so no name can collide.

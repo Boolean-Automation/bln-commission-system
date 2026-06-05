@@ -14,8 +14,11 @@ import {
   GetPayrollSummaryParams,
   GetPayrollSummaryResponse,
 } from "@workspace/api-zod";
+import { requireTenantAccess } from "../lib/rbac";
 
 const router: IRouter = Router();
+
+router.use("/tenants/:tenantId", requireTenantAccess);
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 

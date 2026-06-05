@@ -24,6 +24,16 @@ import {
   useSyncFromAirtable,
 } from "@workspace/api-client-react";
 import { TenantSwitcher } from "./TenantSwitcher";
+import { useAuthContext } from "@/contexts/AuthContext";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { 
   LayoutDashboard, 
   BookOpen, 
@@ -35,8 +45,62 @@ import {
   CheckCircle2,
   RefreshCw,
   Loader2,
-  Tags
+  Tags,
+  ShieldCheck,
+  LogOut
 } from "lucide-react";
+
+const ROLE_LABELS: Record<string, string> = {
+  platform_operator: "Platform Operator",
+  admin: "Admin",
+  rep: "Sales Rep",
+  none: "No access",
+};
+
+function UserMenu() {
+  const { displayName, email, effectiveRole, logout } = useAuthContext();
+  const initials =
+    displayName
+      .split(" ")
+      .map((p) => p[0])
+      .filter(Boolean)
+      .slice(0, 2)
+      .join("")
+      .toUpperCase() || "?";
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" className="h-9 gap-2 px-2">
+          <Avatar className="h-7 w-7">
+            <AvatarFallback className="text-xs">{initials}</AvatarFallback>
+          </Avatar>
+          <span className="hidden text-sm font-medium sm:inline">
+            {displayName}
+          </span>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuLabel>
+          <div className="font-medium">{displayName}</div>
+          {email && (
+            <div className="text-xs font-normal text-muted-foreground">
+              {email}
+            </div>
+          )}
+          <div className="mt-1 text-xs font-normal text-muted-foreground">
+            {ROLE_LABELS[effectiveRole] ?? effectiveRole}
+          </div>
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={logout} className="gap-2">
+          <LogOut className="h-4 w-4" />
+          Sign out
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
 
 function SidebarSync({ tenantId }: { tenantId: string }) {
   const { toast } = useToast();
@@ -104,6 +168,10 @@ export function AppLayout({ children }: AppLayoutProps) {
   const sourceData = [
     { name: "People", href: "/people", icon: Users },
     { name: "Jobs", href: "/jobs", icon: Briefcase },
+  ];
+
+  const administration = [
+    { name: "Access", href: "/access", icon: ShieldCheck },
   ];
 
   return (
@@ -197,6 +265,31 @@ export function AppLayout({ children }: AppLayoutProps) {
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
+
+            <SidebarGroup>
+              <SidebarGroupLabel className="text-sidebar-foreground/50">Administration</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {administration.map((item) => {
+                    const isActive = location.startsWith(item.href);
+                    return (
+                      <SidebarMenuItem key={item.name}>
+                        <SidebarMenuButton
+                          asChild
+                          isActive={isActive}
+                          tooltip={item.name}
+                        >
+                          <Link href={item.href}>
+                            <item.icon className="h-4 w-4" />
+                            <span>{item.name}</span>
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  })}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
           </SidebarContent>
 
           <SidebarFooter className="p-4 border-t border-sidebar-border/50 space-y-3">
@@ -209,7 +302,7 @@ export function AppLayout({ children }: AppLayoutProps) {
         </Sidebar>
 
         <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
-          <header className="h-14 flex items-center px-6 border-b bg-card">
+          <header className="h-14 flex items-center justify-between px-6 border-b bg-card">
             {activeTenant ? (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <span className="font-medium text-foreground">{activeTenant.name}</span>
@@ -219,6 +312,7 @@ export function AppLayout({ children }: AppLayoutProps) {
             ) : (
               <div className="h-4 w-32 bg-muted animate-pulse rounded" />
             )}
+            <UserMenu />
           </header>
           <div className="flex-1 overflow-auto p-6">
             {children}

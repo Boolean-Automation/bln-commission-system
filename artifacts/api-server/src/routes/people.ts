@@ -7,9 +7,12 @@ import {
   ListJobsParams,
   ListJobsResponse,
 } from "@workspace/api-zod";
+import { requireTenantAccess } from "../lib/rbac";
 import { serializePerson, serializeJob } from "../lib/serialize";
 
 const router: IRouter = Router();
+
+router.use("/tenants/:tenantId", requireTenantAccess);
 
 router.get("/tenants/:tenantId/people", async (req, res): Promise<void> => {
   const params = ListPeopleParams.safeParse(req.params);

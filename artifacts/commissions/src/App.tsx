@@ -4,6 +4,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { TenantProvider } from "@/contexts/TenantContext";
+import { AuthProvider, useAuthContext } from "@/contexts/AuthContext";
+import { AuthGate } from "@/components/auth/AuthGate";
 import { AppLayout } from "@/components/layout/AppLayout";
 import NotFound from "@/pages/not-found";
 import { Dashboard } from "@/pages/Dashboard";
@@ -15,10 +17,12 @@ import { Plan } from "@/pages/Plan";
 import { EntryDetail } from "@/pages/EntryDetail";
 import { Mapping } from "@/pages/Mapping";
 import { Positions } from "@/pages/Positions";
+import { Access } from "@/pages/Access";
+import { RepView } from "@/pages/RepView";
 
 const queryClient = new QueryClient();
 
-function Router() {
+function StaffRouter() {
   return (
     <AppLayout>
       <Switch>
@@ -31,9 +35,32 @@ function Router() {
         <Route path="/positions" component={Positions} />
         <Route path="/people" component={People} />
         <Route path="/jobs" component={Jobs} />
+        <Route path="/access" component={Access} />
         <Route component={NotFound} />
       </Switch>
     </AppLayout>
+  );
+}
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+function RoleRouter() {
+  const { effectiveRole } = useAuthContext();
+
+  if (effectiveRole === "rep") {
+    return (
+      <WouterRouter base={base}>
+        <RepView />
+      </WouterRouter>
+    );
+  }
+
+  return (
+    <TenantProvider>
+      <WouterRouter base={base}>
+        <StaffRouter />
+      </WouterRouter>
+    </TenantProvider>
   );
 }
 
@@ -41,11 +68,11 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <TenantProvider>
-          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-            <Router />
-          </WouterRouter>
-        </TenantProvider>
+        <AuthProvider>
+          <AuthGate>
+            <RoleRouter />
+          </AuthGate>
+        </AuthProvider>
         <Toaster />
       </TooltipProvider>
     </QueryClientProvider>
