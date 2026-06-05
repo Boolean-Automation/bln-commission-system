@@ -7,6 +7,7 @@ import type {
   RuleInstanceRow,
   CommissionPlanRow,
   SchemaMappingRow,
+  PositionRow,
 } from "@workspace/db";
 
 const iso = (d: Date | null | undefined): string | null =>
@@ -147,6 +148,15 @@ export function serializePlan(
     effectiveFrom: plan.effectiveFrom,
     effectiveTo: plan.effectiveTo ?? null,
     ruleInstances: instances.map(serializeRuleInstance),
+  };
+}
+
+export function serializePosition(p: PositionRow) {
+  return {
+    id: p.id,
+    tenantId: p.tenantId,
+    name: p.name,
+    createdAt: p.createdAt.toISOString(),
   };
 }
 

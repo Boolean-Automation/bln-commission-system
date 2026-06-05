@@ -328,6 +328,75 @@ export const UpdateSchemaMappingResponse = zod.object({
 
 
 /**
+ * @summary List the tenant's configured positions
+ */
+export const ListPositionsParams = zod.object({
+  "tenantId": zod.coerce.string()
+})
+
+export const ListPositionsResponseItem = zod.object({
+  "id": zod.string(),
+  "tenantId": zod.string(),
+  "name": zod.string(),
+  "createdAt": zod.string()
+})
+export const ListPositionsResponse = zod.array(ListPositionsResponseItem)
+
+
+/**
+ * @summary Add a position to the tenant
+ */
+export const CreatePositionParams = zod.object({
+  "tenantId": zod.coerce.string()
+})
+
+export const CreatePositionBody = zod.object({
+  "name": zod.string()
+})
+
+export const CreatePositionResponse = zod.object({
+  "id": zod.string(),
+  "tenantId": zod.string(),
+  "name": zod.string(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Rename a position
+ */
+export const UpdatePositionParams = zod.object({
+  "tenantId": zod.coerce.string(),
+  "positionId": zod.coerce.string()
+})
+
+export const UpdatePositionBody = zod.object({
+  "name": zod.string()
+})
+
+export const UpdatePositionResponse = zod.object({
+  "id": zod.string(),
+  "tenantId": zod.string(),
+  "name": zod.string(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Delete a position
+ */
+export const DeletePositionParams = zod.object({
+  "tenantId": zod.coerce.string(),
+  "positionId": zod.coerce.string()
+})
+
+export const DeletePositionResponse = zod.object({
+  "id": zod.string(),
+  "deleted": zod.boolean()
+})
+
+
+/**
  * @summary List the available rule modules in the library
  */
 export const ListRuleModulesResponseItem = zod.object({
@@ -340,7 +409,7 @@ export const ListRuleModulesResponseItem = zod.object({
   "fields": zod.array(zod.object({
   "key": zod.string(),
   "label": zod.string(),
-  "type": zod.enum(['number', 'percent', 'currency', 'text', 'select', 'multiselect', 'stringlist', 'list']),
+  "type": zod.enum(['number', 'percent', 'currency', 'text', 'select', 'multiselect', 'stringlist', 'list', 'position']),
   "help": zod.string().nullish(),
   "min": zod.number().nullish(),
   "max": zod.number().nullish(),

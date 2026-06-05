@@ -18,4 +18,5 @@ export const FieldDefType = {
   multiselect: 'multiselect',
   stringlist: 'stringlist',
   list: 'list',
+  position: 'position',
 } as const;

@@ -31,6 +31,7 @@ import type {
   CommissionTransition,
   CreateTenant,
   DashboardSummary,
+  DeletePositionResult,
   DeleteTenantResult,
   ForbiddenResponse,
   GetActivityParams,
@@ -40,6 +41,8 @@ import type {
   NotFoundResponse,
   PayrollLine,
   Person,
+  Position,
+  PositionInput,
   RecomputeResult,
   ReorderRuleInstances,
   RuleInstance,
@@ -1055,6 +1058,301 @@ export const useUpdateSchemaMapping = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getUpdateSchemaMappingMutationOptions(options));
+    }
+
+export const getListPositionsUrl = (tenantId: string,) => {
+
+
+
+
+  return `/api/tenants/${tenantId}/positions`
+}
+
+/**
+ * @summary List the tenant's configured positions
+ */
+export const listPositions = async (tenantId: string, options?: RequestInit): Promise<Position[]> => {
+
+  return customFetch<Position[]>(getListPositionsUrl(tenantId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListPositionsQueryKey = (tenantId: string,) => {
+    return [
+    `/api/tenants/${tenantId}/positions`
+    ] as const;
+    }
+
+
+export const getListPositionsQueryOptions = <TData = Awaited<ReturnType<typeof listPositions>>, TError = ErrorType<unknown>>(tenantId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPositions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListPositionsQueryKey(tenantId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listPositions>>> = ({ signal }) => listPositions(tenantId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(tenantId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listPositions>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListPositionsQueryResult = NonNullable<Awaited<ReturnType<typeof listPositions>>>
+export type ListPositionsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List the tenant's configured positions
+ */
+
+export function useListPositions<TData = Awaited<ReturnType<typeof listPositions>>, TError = ErrorType<unknown>>(
+ tenantId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPositions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListPositionsQueryOptions(tenantId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getCreatePositionUrl = (tenantId: string,) => {
+
+
+
+
+  return `/api/tenants/${tenantId}/positions`
+}
+
+/**
+ * @summary Add a position to the tenant
+ */
+export const createPosition = async (tenantId: string,
+    positionInput: PositionInput, options?: RequestInit): Promise<Position> => {
+
+  return customFetch<Position>(getCreatePositionUrl(tenantId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      positionInput,)
+  }
+);}
+
+
+
+
+export const getCreatePositionMutationOptions = <TError = ErrorType<BadRequestResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPosition>>, TError,{tenantId: string;data: BodyType<PositionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createPosition>>, TError,{tenantId: string;data: BodyType<PositionInput>}, TContext> => {
+
+const mutationKey = ['createPosition'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createPosition>>, {tenantId: string;data: BodyType<PositionInput>}> = (props) => {
+          const {tenantId,data} = props ?? {};
+
+          return  createPosition(tenantId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreatePositionMutationResult = NonNullable<Awaited<ReturnType<typeof createPosition>>>
+    export type CreatePositionMutationBody = BodyType<PositionInput>
+    export type CreatePositionMutationError = ErrorType<BadRequestResponse>
+
+    /**
+ * @summary Add a position to the tenant
+ */
+export const useCreatePosition = <TError = ErrorType<BadRequestResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPosition>>, TError,{tenantId: string;data: BodyType<PositionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createPosition>>,
+        TError,
+        {tenantId: string;data: BodyType<PositionInput>},
+        TContext
+      > => {
+      return useMutation(getCreatePositionMutationOptions(options));
+    }
+
+export const getUpdatePositionUrl = (tenantId: string,
+    positionId: string,) => {
+
+
+
+
+  return `/api/tenants/${tenantId}/positions/${positionId}`
+}
+
+/**
+ * @summary Rename a position
+ */
+export const updatePosition = async (tenantId: string,
+    positionId: string,
+    positionInput: PositionInput, options?: RequestInit): Promise<Position> => {
+
+  return customFetch<Position>(getUpdatePositionUrl(tenantId,positionId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      positionInput,)
+  }
+);}
+
+
+
+
+export const getUpdatePositionMutationOptions = <TError = ErrorType<BadRequestResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePosition>>, TError,{tenantId: string;positionId: string;data: BodyType<PositionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updatePosition>>, TError,{tenantId: string;positionId: string;data: BodyType<PositionInput>}, TContext> => {
+
+const mutationKey = ['updatePosition'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updatePosition>>, {tenantId: string;positionId: string;data: BodyType<PositionInput>}> = (props) => {
+          const {tenantId,positionId,data} = props ?? {};
+
+          return  updatePosition(tenantId,positionId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdatePositionMutationResult = NonNullable<Awaited<ReturnType<typeof updatePosition>>>
+    export type UpdatePositionMutationBody = BodyType<PositionInput>
+    export type UpdatePositionMutationError = ErrorType<BadRequestResponse | NotFoundResponse>
+
+    /**
+ * @summary Rename a position
+ */
+export const useUpdatePosition = <TError = ErrorType<BadRequestResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePosition>>, TError,{tenantId: string;positionId: string;data: BodyType<PositionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updatePosition>>,
+        TError,
+        {tenantId: string;positionId: string;data: BodyType<PositionInput>},
+        TContext
+      > => {
+      return useMutation(getUpdatePositionMutationOptions(options));
+    }
+
+export const getDeletePositionUrl = (tenantId: string,
+    positionId: string,) => {
+
+
+
+
+  return `/api/tenants/${tenantId}/positions/${positionId}`
+}
+
+/**
+ * @summary Delete a position
+ */
+export const deletePosition = async (tenantId: string,
+    positionId: string, options?: RequestInit): Promise<DeletePositionResult> => {
+
+  return customFetch<DeletePositionResult>(getDeletePositionUrl(tenantId,positionId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeletePositionMutationOptions = <TError = ErrorType<NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deletePosition>>, TError,{tenantId: string;positionId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deletePosition>>, TError,{tenantId: string;positionId: string}, TContext> => {
+
+const mutationKey = ['deletePosition'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deletePosition>>, {tenantId: string;positionId: string}> = (props) => {
+          const {tenantId,positionId} = props ?? {};
+
+          return  deletePosition(tenantId,positionId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeletePositionMutationResult = NonNullable<Awaited<ReturnType<typeof deletePosition>>>
+
+    export type DeletePositionMutationError = ErrorType<NotFoundResponse>
+
+    /**
+ * @summary Delete a position
+ */
+export const useDeletePosition = <TError = ErrorType<NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deletePosition>>, TError,{tenantId: string;positionId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deletePosition>>,
+        TError,
+        {tenantId: string;positionId: string},
+        TContext
+      > => {
+      return useMutation(getDeletePositionMutationOptions(options));
     }
 
 export const getListRuleModulesUrl = () => {

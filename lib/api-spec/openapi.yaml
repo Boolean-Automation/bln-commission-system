@@ -253,6 +253,86 @@ paths:
               schema:
                 $ref: "#/components/schemas/SchemaMapping"
 
+  /tenants/{tenantId}/positions:
+    get:
+      operationId: listPositions
+      tags: [positions]
+      summary: List the tenant's configured positions
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+      responses:
+        "200":
+          description: Positions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Position"
+    post:
+      operationId: createPosition
+      tags: [positions]
+      summary: Add a position to the tenant
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PositionInput"
+      responses:
+        "200":
+          description: Created position
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Position"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /tenants/{tenantId}/positions/{positionId}:
+    patch:
+      operationId: updatePosition
+      tags: [positions]
+      summary: Rename a position
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+        - $ref: "#/components/parameters/PositionId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PositionInput"
+      responses:
+        "200":
+          description: Updated position
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Position"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: deletePosition
+      tags: [positions]
+      summary: Delete a position
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+        - $ref: "#/components/parameters/PositionId"
+      responses:
+        "200":
+          description: Deleted position
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeletePositionResult"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /rule-modules:
     get:
       operationId: listRuleModules
@@ -601,6 +681,12 @@ components:
       required: true
       schema:
         type: string
+    PositionId:
+      name: positionId
+      in: path
+      required: true
+      schema:
+        type: string
   responses:
     NotFound:
       description: Resource not found
@@ -635,6 +721,35 @@ components:
       properties:
         error:
           type: string
+
+    Position:
+      type: object
+      required: [id, tenantId, name, createdAt]
+      properties:
+        id:
+          type: string
+        tenantId:
+          type: string
+        name:
+          type: string
+        createdAt:
+          type: string
+
+    PositionInput:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+
+    DeletePositionResult:
+      type: object
+      required: [id, deleted]
+      properties:
+        id:
+          type: string
+        deleted:
+          type: boolean
 
     CommissionState:
       type: string
@@ -812,7 +927,7 @@ components:
         type:
           type: string
           enum:
-            [number, percent, currency, text, select, multiselect, stringlist, list]
+            [number, percent, currency, text, select, multiselect, stringlist, list, position]
         help:
           type: ["string", "null"]
         min:

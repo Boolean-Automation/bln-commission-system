@@ -10,6 +10,7 @@ import {
   ruleInstancesTable,
   commissionEntriesTable,
   commissionEventsTable,
+  positionsTable,
 } from "@workspace/db";
 import {
   ListTenantsResponse,
@@ -239,6 +240,9 @@ router.delete("/tenants/:tenantId", async (req, res): Promise<void> => {
     await tx
       .delete(schemaMappingsTable)
       .where(eq(schemaMappingsTable.tenantId, tenantId));
+    await tx
+      .delete(positionsTable)
+      .where(eq(positionsTable.tenantId, tenantId));
     await tx.delete(tenantsTable).where(eq(tenantsTable.id, tenantId));
   });
 

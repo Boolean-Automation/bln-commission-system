@@ -13,6 +13,22 @@ export interface Error {
   error: string;
 }
 
+export interface Position {
+  id: string;
+  tenantId: string;
+  name: string;
+  createdAt: string;
+}
+
+export interface PositionInput {
+  name: string;
+}
+
+export interface DeletePositionResult {
+  id: string;
+  deleted: boolean;
+}
+
 export type CommissionState = typeof CommissionState[keyof typeof CommissionState];
 
 
@@ -167,6 +183,7 @@ export const FieldDefType = {
   multiselect: 'multiselect',
   stringlist: 'stringlist',
   list: 'list',
+  position: 'position',
 } as const;
 
 export type FieldDefOptionsItem = {
