@@ -40,7 +40,12 @@ checks (recipient/conditions/calculation/tier ordering).
 
 ## No-code formula / conditional / forecast (custom rules)
 The shared safe evaluator lives in `@workspace/rule-validation` (`formula.ts` + `variables.ts`),
-used by BOTH the validator and the engine — never add a second evaluator. Variable scope keys
+used by BOTH the validator and the engine — never add a second evaluator. The ENTIRE custom-rule
+calculation (conditions, flat/percent/tiered/formula/conditional dispatch, forecast weighting, GP
+gate, and the `computationSnapshot` it builds) also lives there as `evaluateCustomRule(cfg, job,
+person, {gateFloor})` in `customRule.ts`. The engine's `recomputeTenant` and the web builder's
+live "Test this rule" preview both call it, so preview and ledger can never disagree — never
+re-implement this math in either place; extend the shared function. Variable scope keys
 drop the leading `@` (e.g. `job.totalAmount`, `manual.<key>`); the catalog (`FORMULA_VARIABLES`)
 is the single source of allowed paths. Eval is deterministic and sandboxed: div/mod-by-zero → 0,
 unknown var → explicit error (engine treats a failed eval as amount 0 and records the error in

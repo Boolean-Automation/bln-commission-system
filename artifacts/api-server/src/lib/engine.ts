@@ -12,67 +12,13 @@ import {
   type RuleInstanceRow,
 } from "@workspace/db";
 import {
-  evaluateFormula,
-  type FormulaScope,
+  evaluateCustomRule,
+  type CustomConfig,
+  type CustomRecipient,
 } from "@workspace/rule-validation";
 
 type Tier = { ytdUpTo: number | null; rate: number };
 type PositionTiers = { position: string; tiers: Tier[] };
-
-// ---- Custom (declarative) rule config ----
-type CustomOp =
-  | "eq"
-  | "neq"
-  | "gt"
-  | "gte"
-  | "lt"
-  | "lte"
-  | "contains"
-  | "notContains";
-type CustomCondition = { field: string; op: CustomOp; value: string | number };
-type CustomRecipient = {
-  source: "salesRep" | "manager" | "match";
-  positionContains?: string;
-  rolesInclude?: string[];
-};
-type CustomTier = { upTo: number | null; rate: number };
-// A "result" is the leaf amount a branch (or the whole rule) produces. It is a
-// subset of the calculation kinds — flat, percent, or formula — and is reused by
-// conditional branches and the otherwise-clause.
-type ResultCalc =
-  | { kind: "flat"; amount: number }
-  | { kind: "percent"; field: "totalAmount" | "gpAmount"; rate: number }
-  | { kind: "formula"; expression: string };
-type ConditionalBranch = { when: CustomCondition; result: ResultCalc };
-type CustomCalculation =
-  | { kind: "flat"; amount: number }
-  | { kind: "percent"; field: "totalAmount" | "gpAmount"; rate: number }
-  | {
-      kind: "tiered";
-      basisField: "totalAmount" | "gpAmount";
-      tiers: CustomTier[];
-    }
-  | { kind: "formula"; expression: string }
-  | {
-      kind: "conditional";
-      branches: ConditionalBranch[];
-      otherwise?: ResultCalc;
-    };
-type ManualVar = { key: string; label?: string; value: number };
-type ForecastConfig = {
-  enabled: boolean;
-  weightPct: number;
-  openStatuses: string[];
-};
-type CustomConfig = {
-  label?: string;
-  recipient: CustomRecipient;
-  conditions: CustomCondition[];
-  calculation: CustomCalculation;
-  respectGate?: boolean;
-  manualVars?: ManualVar[];
-  forecast?: ForecastConfig;
-};
 
 type DesiredEntry = {
   dedupeKey: string;
@@ -115,155 +61,6 @@ function pickTier(tiers: Tier[], ytd: number): Tier | undefined {
     if (t.ytdUpTo === null || ytd < t.ytdUpTo) return t;
   }
   return tiers[tiers.length - 1];
-}
-
-function pickCustomTier(
-  tiers: CustomTier[],
-  ytd: number,
-): CustomTier | undefined {
-  for (const t of tiers) {
-    if (t.upTo === null || ytd < t.upTo) return t;
-  }
-  return tiers[tiers.length - 1];
-}
-
-// Build the numeric scope a formula evaluates against for one job/person pair:
-// the built-in job/person variables plus any manual inputs defined on the rule.
-// Keys are the variable paths (without the leading "@") so they line up with the
-// shared variable catalog.
-function buildFormulaScope(
-  job: Job,
-  person: Person,
-  manualVars: ManualVar[],
-): FormulaScope {
-  const scope: FormulaScope = {
-    "job.totalAmount": num(job.totalAmount, 0),
-    "job.gpAmount": num(job.gpAmount, 0),
-    "job.gpPct": num(job.gpPct, 0),
-    "person.ytdSales": num(person.ytdSales ?? 0, 0),
-  };
-  for (const mv of manualVars) {
-    if (mv && typeof mv.key === "string" && mv.key.trim() !== "")
-      scope[`manual.${mv.key}`] = num(mv.value, 0);
-  }
-  return scope;
-}
-
-// Evaluate a leaf "result" (flat / percent / formula) into a raw amount plus a
-// transparent snapshot detail. Used by formula and conditional calculations.
-function evalResultCalc(
-  result: ResultCalc | undefined,
-  job: Job,
-  total: number,
-  scope: FormulaScope,
-): { amount: number; detail: Record<string, unknown> } {
-  if (!result) return { amount: 0, detail: { kind: "none" } };
-  if (result.kind === "flat") {
-    const amount = num(result.amount, 0);
-    return { amount, detail: { kind: "flat", amount } };
-  }
-  if (result.kind === "percent") {
-    const basis = result.field === "gpAmount" ? num(job.gpAmount, 0) : total;
-    const rate = num(result.rate, 0);
-    return {
-      amount: basis * rate,
-      detail: {
-        kind: "percent",
-        basisField: result.field,
-        basis,
-        rate,
-        formula: `${(rate * 100).toFixed(2)}% x ${basis}`,
-      },
-    };
-  }
-  if (result.kind === "formula") {
-    const expr = result.expression ?? "";
-    const res = evaluateFormula(expr, scope);
-    return {
-      amount: res.ok ? res.value : 0,
-      detail: {
-        kind: "formula",
-        expression: expr,
-        value: res.ok ? res.value : 0,
-        variables: res.vars,
-        ...(res.ok ? {} : { error: res.error }),
-      },
-    };
-  }
-  return { amount: 0, detail: { kind: "unknown" } };
-}
-
-// Resolve the value of a custom-condition field from a job/person pair.
-function customFieldValue(
-  field: string,
-  job: Job,
-  person: Person,
-): string | number | null {
-  switch (field) {
-    case "job.totalAmount":
-      return job.totalAmount ?? null;
-    case "job.gpAmount":
-      return job.gpAmount ?? null;
-    case "job.gpPct":
-      return job.gpPct ?? null;
-    case "job.leadSource":
-      return job.leadSource ?? null;
-    case "job.status":
-      return job.status ?? null;
-    case "job.customer":
-      return job.customer ?? null;
-    case "person.position":
-      return person.position ?? null;
-    case "person.ytdSales":
-      return person.ytdSales ?? null;
-    case "person.roles":
-      return (person.roles ?? []).join(", ");
-    default:
-      return null;
-  }
-}
-
-function evalCustomCondition(
-  cond: CustomCondition,
-  job: Job,
-  person: Person,
-): boolean {
-  const actual = customFieldValue(cond.field, job, person);
-  const expected = cond.value;
-  switch (cond.op) {
-    case "eq":
-    case "neq": {
-      const eq =
-        String(actual ?? "")
-          .trim()
-          .toLowerCase() ===
-        String(expected ?? "")
-          .trim()
-          .toLowerCase();
-      return cond.op === "eq" ? eq : !eq;
-    }
-    case "contains":
-    case "notContains": {
-      const has = String(actual ?? "")
-        .toLowerCase()
-        .includes(String(expected ?? "").toLowerCase());
-      return cond.op === "contains" ? has : !has;
-    }
-    case "gt":
-    case "gte":
-    case "lt":
-    case "lte": {
-      const a = typeof actual === "number" ? actual : Number(actual);
-      const b = typeof expected === "number" ? expected : Number(expected);
-      if (!Number.isFinite(a) || !Number.isFinite(b)) return false;
-      if (cond.op === "gt") return a > b;
-      if (cond.op === "gte") return a >= b;
-      if (cond.op === "lt") return a < b;
-      return a <= b;
-    }
-    default:
-      return false;
-  }
 }
 
 // Cross-cutting per-rule exclusions stored on the rule instance's `appliesTo`.
@@ -596,131 +393,13 @@ export async function recomputeTenant(
         if (!cfg || !cfg.recipient || !cfg.calculation) continue;
         const recipients = resolveCustomRecipients(cfg.recipient, job, people);
         if (recipients.length === 0) continue;
-        const conditions = Array.isArray(cfg.conditions) ? cfg.conditions : [];
-        const manualVars = Array.isArray(cfg.manualVars) ? cfg.manualVars : [];
-        const respectGate = cfg.respectGate === true;
-        const gated =
-          respectGate &&
-          gateFloor !== null &&
-          job.gpPct !== null &&
-          job.gpPct !== undefined &&
-          job.gpPct < gateFloor;
-
-        // Forecast/weighting: pipeline (open) jobs can be booked at a weighted
-        // fraction of their full commission. Opt-in and additive — when disabled
-        // (the default) every job is weighted 1.0, leaving existing behavior
-        // unchanged.
-        const forecast = cfg.forecast;
-        const forecastEnabled = forecast?.enabled === true;
-        const openStatuses = (
-          forecastEnabled && Array.isArray(forecast?.openStatuses)
-            ? forecast.openStatuses
-            : []
-        )
-          .map((s) => String(s).trim().toLowerCase())
-          .filter((s) => s.length > 0);
-        const jobStatus = (job.status ?? "").trim().toLowerCase();
-        const forecastApplies =
-          forecastEnabled && openStatuses.includes(jobStatus);
-        const weight = forecastApplies ? num(forecast?.weightPct, 0) : 1;
 
         for (const person of recipients) {
-          // All conditions must pass (AND) for this job/person pair.
-          if (!conditions.every((c) => evalCustomCondition(c, job, person)))
-            continue;
-
-          const calc = cfg.calculation;
-          const scope = buildFormulaScope(job, person, manualVars);
-          let raw = 0;
-          const snapshot: Record<string, unknown> = {
-            rule: "custom",
-            label: cfg.label ?? "Custom rule",
-            recipient: cfg.recipient.source,
-          };
-          if (calc.kind === "flat") {
-            raw = num(calc.amount, 0);
-            snapshot["calculation"] = "flat";
-            snapshot["flat"] = raw;
-          } else if (calc.kind === "percent") {
-            const basis =
-              calc.field === "gpAmount" ? (job.gpAmount ?? 0) : total;
-            const rate = num(calc.rate, 0);
-            raw = basis * rate;
-            snapshot["calculation"] = "percent";
-            snapshot["basisField"] = calc.field;
-            snapshot["basis"] = basis;
-            snapshot["rate"] = rate;
-            snapshot["formula"] = `${(rate * 100).toFixed(2)}% x ${basis}`;
-          } else if (calc.kind === "tiered") {
-            const ytd = person.ytdSales ?? 0;
-            const tier = pickCustomTier(
-              Array.isArray(calc.tiers) ? calc.tiers : [],
-              ytd,
-            );
-            if (!tier) continue;
-            const basis =
-              calc.basisField === "gpAmount" ? (job.gpAmount ?? 0) : total;
-            raw = basis * tier.rate;
-            snapshot["calculation"] = "tiered";
-            snapshot["basisField"] = calc.basisField;
-            snapshot["basis"] = basis;
-            snapshot["ytdSales"] = ytd;
-            snapshot["rate"] = tier.rate;
-            snapshot["formula"] = `${(tier.rate * 100).toFixed(2)}% x ${basis}`;
-          } else if (calc.kind === "formula") {
-            const r = evalResultCalc(
-              { kind: "formula", expression: calc.expression },
-              job,
-              total,
-              scope,
-            );
-            raw = r.amount;
-            snapshot["calculation"] = "formula";
-            snapshot["expression"] = calc.expression;
-            snapshot["variables"] = scope;
-            snapshot["value"] = r.amount;
-            if (r.detail["error"]) snapshot["error"] = r.detail["error"];
-          } else if (calc.kind === "conditional") {
-            const branches = Array.isArray(calc.branches) ? calc.branches : [];
-            let matched: number | "otherwise" = "otherwise";
-            let chosen: ResultCalc | undefined = calc.otherwise;
-            for (let bi = 0; bi < branches.length; bi++) {
-              const branch = branches[bi]!;
-              if (branch.when && evalCustomCondition(branch.when, job, person)) {
-                matched = bi;
-                chosen = branch.result;
-                break;
-              }
-            }
-            const r = evalResultCalc(chosen, job, total, scope);
-            raw = r.amount;
-            snapshot["calculation"] = "conditional";
-            snapshot["matchedBranch"] = matched;
-            snapshot["branchResult"] = r.detail;
-            snapshot["variables"] = scope;
-          } else {
-            continue;
-          }
-
-          // Apply forecast weighting after the raw amount, before the gate (the
-          // gate always forces 0).
-          const fullAmount = round2(raw);
-          if (forecastApplies) {
-            raw = raw * weight;
-            snapshot["forecast"] = {
-              applied: true,
-              status: jobStatus,
-              weight,
-              fullAmount,
-              weightedAmount: round2(raw),
-            };
-          } else if (forecastEnabled) {
-            snapshot["forecast"] = { applied: false, status: jobStatus, weight: 1 };
-          }
-
-          const amount = gated ? 0 : round2(raw);
-          snapshot["gpPct"] = job.gpPct;
-          snapshot["gated"] = gated;
+          // The amount, matched branch, forecast weighting, and gate are all
+          // computed by the shared evaluator so recompute and the builder's live
+          // preview can never disagree.
+          const outcome = evaluateCustomRule(cfg, job, person, { gateFloor });
+          if (!outcome.applies) continue;
           desired.push({
             dedupeKey: `${inst.id}:${job.id}:${person.id}:MSC`,
             personId: person.id,
@@ -729,10 +408,10 @@ export async function recomputeTenant(
             sourceKind: "job",
             sourceId: job.id,
             sourceLabel: label,
-            amount,
+            amount: outcome.amount,
             positionAtCosted: person.position ?? null,
             ruleInstanceIds: [inst.id],
-            computationSnapshot: snapshot,
+            computationSnapshot: outcome.snapshot,
           });
         }
       }

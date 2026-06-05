@@ -12,6 +12,7 @@ import {
 
 export * from "./formula";
 export * from "./variables";
+export * from "./customRule";
 
 export type FieldDefLike = {
   key: string;

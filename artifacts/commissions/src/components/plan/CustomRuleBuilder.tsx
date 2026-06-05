@@ -15,8 +15,12 @@ import { Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   variablesForRule,
+  evaluateCustomRule,
   type FormulaVariable,
   type ManualVariable,
+  type CustomConfig,
+  type CustomRuleJob,
+  type CustomRulePerson,
 } from "@workspace/rule-validation";
 import { PositionSelect, usePositionNames } from "./PositionSelect";
 
@@ -440,6 +444,261 @@ export function CustomRuleBuilder({
           onCheckedChange={(c) => patch({ respectGate: c })}
         />
       </div>
+
+      {/* Live preview */}
+      <RulePreview cfg={cfg} />
+    </div>
+  );
+}
+
+// ── Live "test this rule" preview ───────────────────────────────────────────
+// Lets an operator type a sample job/person and instantly see what this rule
+// would pay, which conditional branch fired, and how forecast weighting / the
+// GP gate affect the result. It runs the SAME shared evaluator the recompute
+// engine uses (`evaluateCustomRule`), so the preview and the real ledger can
+// never disagree.
+const usd = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+});
+
+type SampleState = {
+  totalAmount: string;
+  gpAmount: string;
+  gpPct: string;
+  status: string;
+  leadSource: string;
+  customer: string;
+  position: string;
+  ytdSales: string;
+  roles: string;
+  gateFloor: string;
+};
+
+const SAMPLE_DEFAULTS: SampleState = {
+  totalAmount: "10000",
+  gpAmount: "4500",
+  gpPct: "45",
+  status: "won",
+  leadSource: "",
+  customer: "",
+  position: "",
+  ytdSales: "50000",
+  roles: "",
+  gateFloor: "40",
+};
+
+function numOrNull(s: string): number | null {
+  const t = s.trim();
+  if (t === "") return null;
+  const n = Number(t);
+  return Number.isFinite(n) ? n : null;
+}
+
+function RulePreview({ cfg }: { cfg: Record<string, unknown> }) {
+  const [sample, setSample] = React.useState<SampleState>(SAMPLE_DEFAULTS);
+  const set = (next: Partial<SampleState>) =>
+    setSample((s) => ({ ...s, ...next }));
+
+  const respectGate = cfg["respectGate"] === true;
+  const calcKind =
+    ((cfg["calculation"] as Record<string, unknown> | undefined)?.[
+      "kind"
+    ] as string) ?? "flat";
+  const forecastEnabledCfg =
+    (cfg["forecast"] as Record<string, unknown> | undefined)?.["enabled"] ===
+    true;
+
+  const outcome = React.useMemo(() => {
+    const job: CustomRuleJob = {
+      totalAmount: numOrNull(sample.totalAmount),
+      gpAmount: numOrNull(sample.gpAmount),
+      gpPct: numOrNull(sample.gpPct),
+      status: sample.status,
+      leadSource: sample.leadSource,
+      customer: sample.customer,
+    };
+    const person: CustomRulePerson = {
+      position: sample.position,
+      ytdSales: numOrNull(sample.ytdSales),
+      roles: sample.roles
+        .split(",")
+        .map((r) => r.trim())
+        .filter((r) => r.length > 0),
+    };
+    const gateFloor = respectGate ? numOrNull(sample.gateFloor) : null;
+    try {
+      return evaluateCustomRule(cfg as unknown as CustomConfig, job, person, {
+        gateFloor,
+      });
+    } catch {
+      return null;
+    }
+  }, [cfg, sample, respectGate]);
+
+  return (
+    <div className="space-y-3 rounded-md border border-primary/30 bg-primary/5 p-3">
+      <div>
+        <p className="text-sm font-semibold">Test this rule</p>
+        <p className="text-xs text-muted-foreground">
+          Enter a sample job and earner to preview what this rule would pay.
+          Uses the same math as the live ledger.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <PreviewField
+          label="Job total ($)"
+          value={sample.totalAmount}
+          onChange={(v) => set({ totalAmount: v })}
+          type="number"
+        />
+        <PreviewField
+          label="Job gross profit ($)"
+          value={sample.gpAmount}
+          onChange={(v) => set({ gpAmount: v })}
+          type="number"
+        />
+        <PreviewField
+          label="Job GP (%)"
+          value={sample.gpPct}
+          onChange={(v) => set({ gpPct: v })}
+          type="number"
+        />
+        <PreviewField
+          label="Job status"
+          value={sample.status}
+          onChange={(v) => set({ status: v })}
+        />
+        <PreviewField
+          label="Lead source"
+          value={sample.leadSource}
+          onChange={(v) => set({ leadSource: v })}
+        />
+        <PreviewField
+          label="Customer"
+          value={sample.customer}
+          onChange={(v) => set({ customer: v })}
+        />
+        <PreviewField
+          label="Earner position"
+          value={sample.position}
+          onChange={(v) => set({ position: v })}
+        />
+        <PreviewField
+          label="Earner YTD sales ($)"
+          value={sample.ytdSales}
+          onChange={(v) => set({ ytdSales: v })}
+          type="number"
+        />
+        <PreviewField
+          label="Earner roles (comma-sep)"
+          value={sample.roles}
+          onChange={(v) => set({ roles: v })}
+        />
+        {respectGate && (
+          <PreviewField
+            label="GP gatekeeper floor (%)"
+            value={sample.gateFloor}
+            onChange={(v) => set({ gateFloor: v })}
+            type="number"
+          />
+        )}
+      </div>
+
+      <div className="rounded-md border bg-background p-3">
+        {!outcome ? (
+          <p className="text-sm text-muted-foreground">
+            Enter sample values to see a preview.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            <div className="flex items-baseline justify-between gap-3">
+              <span className="text-xs font-medium text-muted-foreground">
+                This rule would pay
+              </span>
+              <span
+                className={cn(
+                  "text-2xl font-bold tabular-nums",
+                  outcome.applies
+                    ? "text-foreground"
+                    : "text-muted-foreground",
+                )}
+              >
+                {usd.format(outcome.amount)}
+              </span>
+            </div>
+
+            {!outcome.applies && (
+              <p className="text-xs text-amber-600 dark:text-amber-500">
+                Doesn’t apply to this sample: {outcome.reason}
+              </p>
+            )}
+
+            {outcome.applies && (
+              <div className="space-y-1 text-xs text-muted-foreground">
+                {calcKind === "conditional" && (
+                  <p>
+                    Matched branch:{" "}
+                    <span className="font-medium text-foreground">
+                      {outcome.matchedBranch === "otherwise"
+                        ? "Otherwise"
+                        : outcome.matchedBranch === null
+                          ? "—"
+                          : `Branch ${outcome.matchedBranch + 1}`}
+                    </span>
+                  </p>
+                )}
+                {forecastEnabledCfg && (
+                  <p>
+                    Forecast weighting:{" "}
+                    {outcome.forecastApplies ? (
+                      <span className="font-medium text-foreground">
+                        applied at {(outcome.weight * 100).toFixed(0)}% (
+                        {usd.format(outcome.fullAmount)} →{" "}
+                        {usd.format(outcome.amount)})
+                      </span>
+                    ) : (
+                      <span className="font-medium text-foreground">
+                        not applied (job status isn’t a pipeline status)
+                      </span>
+                    )}
+                  </p>
+                )}
+                {outcome.gated && (
+                  <p className="text-amber-600 dark:text-amber-500">
+                    Zeroed by the GP gatekeeper (GP% below the floor).
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function PreviewField({
+  label,
+  value,
+  onChange,
+  type,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  type?: "number";
+}) {
+  return (
+    <div className="space-y-1">
+      <Label className="text-[11px] text-muted-foreground">{label}</Label>
+      <Input
+        className="h-8"
+        type={type === "number" ? "number" : "text"}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      />
     </div>
   );
 }
