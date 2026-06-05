@@ -38,6 +38,22 @@ validator lives in a lib to avoid drift between client and server checks.
 up. Built-in fields validate from `FieldDef` metadata; custom rules have bespoke structural
 checks (recipient/conditions/calculation/tier ordering).
 
+## No-code formula / conditional / forecast (custom rules)
+The shared safe evaluator lives in `@workspace/rule-validation` (`formula.ts` + `variables.ts`),
+used by BOTH the validator and the engine — never add a second evaluator. Variable scope keys
+drop the leading `@` (e.g. `job.totalAmount`, `manual.<key>`); the catalog (`FORMULA_VARIABLES`)
+is the single source of allowed paths. Eval is deterministic and sandboxed: div/mod-by-zero → 0,
+unknown var → explicit error (engine treats a failed eval as amount 0 and records the error in
+the snapshot), NO eval()/Function.
+**Why:** params are freeform jsonb so there's no schema guardrail — correctness rests entirely on
+the shared validator + evaluator staying in lockstep with the engine's scope builder.
+**How to apply:** New calc kinds go into the `CustomCalculation` union + `evalResultCalc`/engine
+branch + `validateCustom` together. Conditional picks the first branch whose `when` passes else
+`otherwise`. Forecast is opt-in (default off → weight 1.0, behavior unchanged); it weights only
+jobs whose lowercased `status` ∈ `openStatuses`, applied to the raw amount BEFORE the GP gate
+(the gate still forces 0). Everything (matched branch, variables scope, forecast) is recorded in
+`computationSnapshot` for auditability.
+
 ## Engine must read rule instances ordered by orderIndex
 `recomputeTenant()` loads instances with `.orderBy(ruleInstancesTable.orderIndex)`.
 **Why:** Rule order is user-controllable (reorder endpoint) and matters for order-sensitive

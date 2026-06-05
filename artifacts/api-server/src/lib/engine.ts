@@ -11,6 +11,10 @@ import {
   type Person,
   type RuleInstanceRow,
 } from "@workspace/db";
+import {
+  evaluateFormula,
+  type FormulaScope,
+} from "@workspace/rule-validation";
 
 type Tier = { ytdUpTo: number | null; rate: number };
 type PositionTiers = { position: string; tiers: Tier[] };
@@ -32,6 +36,14 @@ type CustomRecipient = {
   rolesInclude?: string[];
 };
 type CustomTier = { upTo: number | null; rate: number };
+// A "result" is the leaf amount a branch (or the whole rule) produces. It is a
+// subset of the calculation kinds — flat, percent, or formula — and is reused by
+// conditional branches and the otherwise-clause.
+type ResultCalc =
+  | { kind: "flat"; amount: number }
+  | { kind: "percent"; field: "totalAmount" | "gpAmount"; rate: number }
+  | { kind: "formula"; expression: string };
+type ConditionalBranch = { when: CustomCondition; result: ResultCalc };
 type CustomCalculation =
   | { kind: "flat"; amount: number }
   | { kind: "percent"; field: "totalAmount" | "gpAmount"; rate: number }
@@ -39,13 +51,27 @@ type CustomCalculation =
       kind: "tiered";
       basisField: "totalAmount" | "gpAmount";
       tiers: CustomTier[];
+    }
+  | { kind: "formula"; expression: string }
+  | {
+      kind: "conditional";
+      branches: ConditionalBranch[];
+      otherwise?: ResultCalc;
     };
+type ManualVar = { key: string; label?: string; value: number };
+type ForecastConfig = {
+  enabled: boolean;
+  weightPct: number;
+  openStatuses: string[];
+};
 type CustomConfig = {
   label?: string;
   recipient: CustomRecipient;
   conditions: CustomCondition[];
   calculation: CustomCalculation;
   respectGate?: boolean;
+  manualVars?: ManualVar[];
+  forecast?: ForecastConfig;
 };
 
 type DesiredEntry = {
@@ -99,6 +125,72 @@ function pickCustomTier(
     if (t.upTo === null || ytd < t.upTo) return t;
   }
   return tiers[tiers.length - 1];
+}
+
+// Build the numeric scope a formula evaluates against for one job/person pair:
+// the built-in job/person variables plus any manual inputs defined on the rule.
+// Keys are the variable paths (without the leading "@") so they line up with the
+// shared variable catalog.
+function buildFormulaScope(
+  job: Job,
+  person: Person,
+  manualVars: ManualVar[],
+): FormulaScope {
+  const scope: FormulaScope = {
+    "job.totalAmount": num(job.totalAmount, 0),
+    "job.gpAmount": num(job.gpAmount, 0),
+    "job.gpPct": num(job.gpPct, 0),
+    "person.ytdSales": num(person.ytdSales ?? 0, 0),
+  };
+  for (const mv of manualVars) {
+    if (mv && typeof mv.key === "string" && mv.key.trim() !== "")
+      scope[`manual.${mv.key}`] = num(mv.value, 0);
+  }
+  return scope;
+}
+
+// Evaluate a leaf "result" (flat / percent / formula) into a raw amount plus a
+// transparent snapshot detail. Used by formula and conditional calculations.
+function evalResultCalc(
+  result: ResultCalc | undefined,
+  job: Job,
+  total: number,
+  scope: FormulaScope,
+): { amount: number; detail: Record<string, unknown> } {
+  if (!result) return { amount: 0, detail: { kind: "none" } };
+  if (result.kind === "flat") {
+    const amount = num(result.amount, 0);
+    return { amount, detail: { kind: "flat", amount } };
+  }
+  if (result.kind === "percent") {
+    const basis = result.field === "gpAmount" ? num(job.gpAmount, 0) : total;
+    const rate = num(result.rate, 0);
+    return {
+      amount: basis * rate,
+      detail: {
+        kind: "percent",
+        basisField: result.field,
+        basis,
+        rate,
+        formula: `${(rate * 100).toFixed(2)}% x ${basis}`,
+      },
+    };
+  }
+  if (result.kind === "formula") {
+    const expr = result.expression ?? "";
+    const res = evaluateFormula(expr, scope);
+    return {
+      amount: res.ok ? res.value : 0,
+      detail: {
+        kind: "formula",
+        expression: expr,
+        value: res.ok ? res.value : 0,
+        variables: res.vars,
+        ...(res.ok ? {} : { error: res.error }),
+      },
+    };
+  }
+  return { amount: 0, detail: { kind: "unknown" } };
 }
 
 // Resolve the value of a custom-condition field from a job/person pair.
@@ -505,6 +597,7 @@ export async function recomputeTenant(
         const recipients = resolveCustomRecipients(cfg.recipient, job, people);
         if (recipients.length === 0) continue;
         const conditions = Array.isArray(cfg.conditions) ? cfg.conditions : [];
+        const manualVars = Array.isArray(cfg.manualVars) ? cfg.manualVars : [];
         const respectGate = cfg.respectGate === true;
         const gated =
           respectGate &&
@@ -513,12 +606,31 @@ export async function recomputeTenant(
           job.gpPct !== undefined &&
           job.gpPct < gateFloor;
 
+        // Forecast/weighting: pipeline (open) jobs can be booked at a weighted
+        // fraction of their full commission. Opt-in and additive — when disabled
+        // (the default) every job is weighted 1.0, leaving existing behavior
+        // unchanged.
+        const forecast = cfg.forecast;
+        const forecastEnabled = forecast?.enabled === true;
+        const openStatuses = (
+          forecastEnabled && Array.isArray(forecast?.openStatuses)
+            ? forecast.openStatuses
+            : []
+        )
+          .map((s) => String(s).trim().toLowerCase())
+          .filter((s) => s.length > 0);
+        const jobStatus = (job.status ?? "").trim().toLowerCase();
+        const forecastApplies =
+          forecastEnabled && openStatuses.includes(jobStatus);
+        const weight = forecastApplies ? num(forecast?.weightPct, 0) : 1;
+
         for (const person of recipients) {
           // All conditions must pass (AND) for this job/person pair.
           if (!conditions.every((c) => evalCustomCondition(c, job, person)))
             continue;
 
           const calc = cfg.calculation;
+          const scope = buildFormulaScope(job, person, manualVars);
           let raw = 0;
           const snapshot: Record<string, unknown> = {
             rule: "custom",
@@ -555,8 +667,55 @@ export async function recomputeTenant(
             snapshot["ytdSales"] = ytd;
             snapshot["rate"] = tier.rate;
             snapshot["formula"] = `${(tier.rate * 100).toFixed(2)}% x ${basis}`;
+          } else if (calc.kind === "formula") {
+            const r = evalResultCalc(
+              { kind: "formula", expression: calc.expression },
+              job,
+              total,
+              scope,
+            );
+            raw = r.amount;
+            snapshot["calculation"] = "formula";
+            snapshot["expression"] = calc.expression;
+            snapshot["variables"] = scope;
+            snapshot["value"] = r.amount;
+            if (r.detail["error"]) snapshot["error"] = r.detail["error"];
+          } else if (calc.kind === "conditional") {
+            const branches = Array.isArray(calc.branches) ? calc.branches : [];
+            let matched: number | "otherwise" = "otherwise";
+            let chosen: ResultCalc | undefined = calc.otherwise;
+            for (let bi = 0; bi < branches.length; bi++) {
+              const branch = branches[bi]!;
+              if (branch.when && evalCustomCondition(branch.when, job, person)) {
+                matched = bi;
+                chosen = branch.result;
+                break;
+              }
+            }
+            const r = evalResultCalc(chosen, job, total, scope);
+            raw = r.amount;
+            snapshot["calculation"] = "conditional";
+            snapshot["matchedBranch"] = matched;
+            snapshot["branchResult"] = r.detail;
+            snapshot["variables"] = scope;
           } else {
             continue;
+          }
+
+          // Apply forecast weighting after the raw amount, before the gate (the
+          // gate always forces 0).
+          const fullAmount = round2(raw);
+          if (forecastApplies) {
+            raw = raw * weight;
+            snapshot["forecast"] = {
+              applied: true,
+              status: jobStatus,
+              weight,
+              fullAmount,
+              weightedAmount: round2(raw),
+            };
+          } else if (forecastEnabled) {
+            snapshot["forecast"] = { applied: false, status: jobStatus, weight: 1 };
           }
 
           const amount = gated ? 0 : round2(raw);

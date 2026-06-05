@@ -236,7 +236,7 @@ export const RULE_MODULES: RuleModuleDef[] = [
     name: "Custom Rule",
     category: "Custom",
     description:
-      "Build a rule from scratch: choose who earns it, set conditions on job and person data, and define how the amount is calculated (flat, percentage of a field, or tiered by YTD sales).",
+      "Build a rule from scratch: choose who earns it, set conditions on job and person data, and define how the amount is calculated — flat, percentage of a field, tiered by YTD sales, a free-form formula with @-variables, or conditional if/then branches. Optionally weight pipeline (open) deals for forecasting.",
     summary: "Define your own recipient, conditions, and calculation",
     builder: "custom",
     fields: [],
