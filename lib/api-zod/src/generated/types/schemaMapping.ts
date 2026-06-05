@@ -9,5 +9,7 @@ import type { EntityMapping } from './entityMapping';
 
 export interface SchemaMapping {
   tenantId: string;
+  /** Data-source provider the source object/field references are interpreted against. */
+  provider: string;
   entities: EntityMapping[];
 }

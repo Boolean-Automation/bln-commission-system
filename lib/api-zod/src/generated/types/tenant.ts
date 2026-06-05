@@ -12,6 +12,8 @@ export interface Tenant {
   name: string;
   slug: string;
   status: TenantStatus;
+  /** Key of the data-source provider this tenant ingests from (e.g. "airtable"). */
+  dataSourceProvider: string;
   /** @nullable */
   airtableBaseId?: string | null;
   airtableConnected: boolean;

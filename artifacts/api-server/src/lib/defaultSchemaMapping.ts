@@ -8,8 +8,8 @@ function fields(specs: FieldSpec[]): EntityMapping["fields"] {
     label: s.label,
     required: s.required ?? false,
     mapped: false,
-    airtableFieldId: null,
-    airtableFieldName: null,
+    sourceFieldId: null,
+    sourceFieldName: null,
   }));
 }
 

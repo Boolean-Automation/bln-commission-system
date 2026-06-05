@@ -287,6 +287,7 @@ export const ListTenantsResponseItem = zod.object({
   "name": zod.string(),
   "slug": zod.string(),
   "status": zod.enum(['active', 'paused']),
+  "dataSourceProvider": zod.string().describe('Key of the data-source provider this tenant ingests from (e.g. \"airtable\").'),
   "airtableBaseId": zod.string().nullish(),
   "airtableConnected": zod.boolean(),
   "requiredFieldsMapped": zod.boolean().describe('True when every entity has a source table chosen and all required fields are mapped.'),
@@ -313,6 +314,7 @@ export const CreateTenantResponse = zod.object({
   "name": zod.string(),
   "slug": zod.string(),
   "status": zod.enum(['active', 'paused']),
+  "dataSourceProvider": zod.string().describe('Key of the data-source provider this tenant ingests from (e.g. \"airtable\").'),
   "airtableBaseId": zod.string().nullish(),
   "airtableConnected": zod.boolean(),
   "requiredFieldsMapped": zod.boolean().describe('True when every entity has a source table chosen and all required fields are mapped.'),
@@ -335,6 +337,7 @@ export const GetTenantResponse = zod.object({
   "name": zod.string(),
   "slug": zod.string(),
   "status": zod.enum(['active', 'paused']),
+  "dataSourceProvider": zod.string().describe('Key of the data-source provider this tenant ingests from (e.g. \"airtable\").'),
   "airtableBaseId": zod.string().nullish(),
   "airtableConnected": zod.boolean(),
   "requiredFieldsMapped": zod.boolean().describe('True when every entity has a source table chosen and all required fields are mapped.'),
@@ -364,6 +367,7 @@ export const UpdateTenantResponse = zod.object({
   "name": zod.string(),
   "slug": zod.string(),
   "status": zod.enum(['active', 'paused']),
+  "dataSourceProvider": zod.string().describe('Key of the data-source provider this tenant ingests from (e.g. \"airtable\").'),
   "airtableBaseId": zod.string().nullish(),
   "airtableConnected": zod.boolean(),
   "requiredFieldsMapped": zod.boolean().describe('True when every entity has a source table chosen and all required fields are mapped.'),
@@ -526,6 +530,7 @@ export const GetSchemaMappingParams = zod.object({
 
 export const GetSchemaMappingResponse = zod.object({
   "tenantId": zod.string(),
+  "provider": zod.string().describe('Data-source provider the source object\/field references are interpreted against.'),
   "entities": zod.array(zod.object({
   "entityKind": zod.enum(['person', 'job', 'project', 'addendum']),
   "label": zod.string(),
@@ -536,8 +541,8 @@ export const GetSchemaMappingResponse = zod.object({
   "label": zod.string(),
   "required": zod.boolean(),
   "mapped": zod.boolean(),
-  "airtableFieldId": zod.string().nullish(),
-  "airtableFieldName": zod.string().nullish()
+  "sourceFieldId": zod.string().nullish(),
+  "sourceFieldName": zod.string().nullish()
 })),
   "unrecognizedFields": zod.array(zod.string())
 }))
@@ -562,8 +567,8 @@ export const UpdateSchemaMappingBody = zod.object({
   "label": zod.string(),
   "required": zod.boolean(),
   "mapped": zod.boolean(),
-  "airtableFieldId": zod.string().nullish(),
-  "airtableFieldName": zod.string().nullish()
+  "sourceFieldId": zod.string().nullish(),
+  "sourceFieldName": zod.string().nullish()
 })),
   "unrecognizedFields": zod.array(zod.string())
 }))
@@ -571,6 +576,7 @@ export const UpdateSchemaMappingBody = zod.object({
 
 export const UpdateSchemaMappingResponse = zod.object({
   "tenantId": zod.string(),
+  "provider": zod.string().describe('Data-source provider the source object\/field references are interpreted against.'),
   "entities": zod.array(zod.object({
   "entityKind": zod.enum(['person', 'job', 'project', 'addendum']),
   "label": zod.string(),
@@ -581,8 +587,8 @@ export const UpdateSchemaMappingResponse = zod.object({
   "label": zod.string(),
   "required": zod.boolean(),
   "mapped": zod.boolean(),
-  "airtableFieldId": zod.string().nullish(),
-  "airtableFieldName": zod.string().nullish()
+  "sourceFieldId": zod.string().nullish(),
+  "sourceFieldName": zod.string().nullish()
 })),
   "unrecognizedFields": zod.array(zod.string())
 }))
@@ -687,6 +693,18 @@ export const ListRuleModulesResponseItem = zod.object({
   "defaultParams": zod.record(zod.string(), zod.unknown())
 })
 export const ListRuleModulesResponse = zod.array(ListRuleModulesResponseItem)
+
+
+/**
+ * @summary List the available data-source providers
+ */
+export const ListProvidersResponse = zod.object({
+  "providers": zod.array(zod.object({
+  "key": zod.string(),
+  "label": zod.string(),
+  "available": zod.boolean().describe('False for providers listed as \"coming soon\" with no concrete implementation yet.')
+}))
+})
 
 
 /**
@@ -898,6 +916,7 @@ export const SetAirtableBaseResponse = zod.object({
   "name": zod.string(),
   "slug": zod.string(),
   "status": zod.enum(['active', 'paused']),
+  "dataSourceProvider": zod.string().describe('Key of the data-source provider this tenant ingests from (e.g. \"airtable\").'),
   "airtableBaseId": zod.string().nullish(),
   "airtableConnected": zod.boolean(),
   "requiredFieldsMapped": zod.boolean().describe('True when every entity has a source table chosen and all required fields are mapped.'),

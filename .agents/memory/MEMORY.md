@@ -4,3 +4,4 @@
 - [Auth + RBAC](auth-rbac.md) — 4-tier (super_operator/platform_operator/admin/rep); only super grants Boolean Admins; adding a required AuthContext field must be added to the /me .parse() too or /me 500s; header-origin patterns are intentional.
 - [Per-rule exclusions](rule-exclusions.md) — stored on rule_instances.appliesTo; one cross-cutting engine check covers all modules; role UI = positions, engine also matches role codes.
 - [shadcn Select clear sentinel](shadcn-select-clear-sentinel.md) — to model "clear/Any" + arbitrary user-named options, prefix real values (`v:`) and use a separate clear sentinel so no name can collide.
+- [Data-source providers](data-source-providers.md) — tenant.dataSourceProvider + registry seam; mapping keys are provider-neutral sourceField*; Airtable connection cols/endpoints kept stable on purpose.

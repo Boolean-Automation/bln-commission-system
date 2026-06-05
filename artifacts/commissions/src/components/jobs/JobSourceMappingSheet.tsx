@@ -112,9 +112,9 @@ export function JobSourceMappingSheet({ tenantId }: { tenantId: string }) {
     setJob((prev) => {
       if (!prev) return prev;
       const fields = prev.fields.map((f) =>
-        f.airtableFieldName && cols.has(f.airtableFieldName)
+        f.sourceFieldName && cols.has(f.sourceFieldName)
           ? f
-          : { ...f, airtableFieldName: null, mapped: false },
+          : { ...f, sourceFieldName: null, mapped: false },
       );
       return { ...prev, tableName: name, fields };
     });
@@ -125,7 +125,7 @@ export function JobSourceMappingSheet({ tenantId }: { tenantId: string }) {
       if (!prev) return prev;
       const fields = prev.fields.map((f, i) =>
         i === fieldIdx
-          ? { ...f, airtableFieldName: column, mapped: !!column }
+          ? { ...f, sourceFieldName: column, mapped: !!column }
           : f,
       );
       return { ...prev, fields };
@@ -136,8 +136,8 @@ export function JobSourceMappingSheet({ tenantId }: { tenantId: string }) {
   // not present in the selected table (only enforced once columns have loaded).
   const isFieldInvalid = (f: EntityMapping["fields"][number]) => {
     if (!f.required) return false;
-    if (!f.airtableFieldName) return true;
-    if (columnOptions.length > 0 && !columnNameSet.has(f.airtableFieldName))
+    if (!f.sourceFieldName) return true;
+    if (columnOptions.length > 0 && !columnNameSet.has(f.sourceFieldName))
       return true;
     return false;
   };
@@ -299,7 +299,7 @@ export function JobSourceMappingSheet({ tenantId }: { tenantId: string }) {
                       </div>
                     </div>
                     <AirtableColumnCombobox
-                      value={field.airtableFieldName ?? null}
+                      value={field.sourceFieldName ?? null}
                       options={columnOptions}
                       placeholder="— Unmapped —"
                       emptyText={

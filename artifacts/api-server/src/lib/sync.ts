@@ -7,7 +7,11 @@ import {
   schemaMappingsTable,
   type EntityMapping,
 } from "@workspace/db";
-import { fetchAllRecords, type AirtableRecord } from "./airtable";
+import {
+  getTenantProvider,
+  getTenantConnectionId,
+  type SourceRecord,
+} from "./providers";
 import { recomputeTenant, type RecomputeResult } from "./engine";
 
 function parseNumber(v: unknown): number | null {
@@ -80,14 +84,14 @@ function buildFieldMap(entity: EntityMapping | undefined): FieldMap {
   const m: FieldMap = new Map();
   if (!entity) return m;
   for (const f of entity.fields) {
-    if (f.mapped && f.airtableFieldName) {
-      m.set(f.canonical, f.airtableFieldName);
+    if (f.mapped && f.sourceFieldName) {
+      m.set(f.canonical, f.sourceFieldName);
     }
   }
   return m;
 }
 
-function reader(map: FieldMap, rec: AirtableRecord) {
+function reader(map: FieldMap, rec: SourceRecord) {
   return (canonical: string): unknown =>
     map.has(canonical) ? rec.fields[map.get(canonical)!] : undefined;
 }
@@ -100,18 +104,24 @@ export type SyncResult = {
   recompute: RecomputeResult;
 };
 
-export async function syncTenantFromAirtable(
-  tenantId: string,
-): Promise<SyncResult> {
+/**
+ * Pull a tenant's people and jobs from its configured data-source provider into
+ * the canonical mirror tables, prune rows that vanished from the source, and
+ * recompute commissions. Provider-agnostic: the only source-specific work is
+ * delegated to the resolved `DataSourceProvider`.
+ */
+export async function syncTenant(tenantId: string): Promise<SyncResult> {
   const [tenant] = await db
     .select()
     .from(tenantsTable)
     .where(eq(tenantsTable.id, tenantId));
   if (!tenant) throw new Error("Tenant not found");
-  if (!tenant.airtableBaseId) {
-    throw new Error("Tenant has no Airtable base configured");
+
+  const provider = getTenantProvider(tenant);
+  const connectionId = getTenantConnectionId(tenant);
+  if (!connectionId) {
+    throw new Error(`Tenant has no ${provider.label} connection configured`);
   }
-  const baseId = tenant.airtableBaseId;
 
   const [mapping] = await db
     .select()
@@ -131,11 +141,14 @@ export async function syncTenantFromAirtable(
   const jobFields = buildFieldMap(jobEntity);
 
   // --- People ---
-  const personRecords = await fetchAllRecords(baseId, personEntity.tableName);
+  const personRecords = await provider.fetchRecords(
+    connectionId,
+    personEntity.tableName,
+  );
   const peopleSeen: string[] = [];
   let peopleUpserted = 0;
   for (const rec of personRecords) {
-    // The record exists in Airtable, so mark it seen up front. Pruning must be
+    // The record exists in the source, so mark it seen up front. Pruning must be
     // driven by source presence, not by whether we could map the row —
     // otherwise an unmappable (but still-present) record would be deleted.
     peopleSeen.push(rec.id);
@@ -149,7 +162,7 @@ export async function syncTenantFromAirtable(
       email: parseStr(get("email")),
       company: parseStr(get("company")),
       // ytdSales is computed by the engine from non-cancelled jobs (see
-      // recomputeTenant), not synced from Airtable.
+      // recomputeTenant), not synced from the source.
       startDate: parseStr(get("startDate")),
       active: parseBool(get("active")),
     };
@@ -164,7 +177,10 @@ export async function syncTenantFromAirtable(
   }
 
   // --- Jobs ---
-  const jobRecords = await fetchAllRecords(baseId, jobEntity.tableName);
+  const jobRecords = await provider.fetchRecords(
+    connectionId,
+    jobEntity.tableName,
+  );
   const jobsSeen: string[] = [];
   let jobsUpserted = 0;
   for (const rec of jobRecords) {
@@ -199,8 +215,8 @@ export async function syncTenantFromAirtable(
     jobsUpserted++;
   }
 
-  // Prune rows previously synced from Airtable that are now gone from the
-  // source. Seed/manual rows (airtableRecordId null) are never touched.
+  // Prune rows previously synced from the source that are now gone. Seed/manual
+  // rows (airtableRecordId null) are never touched.
   const peopleRemoved = (
     await db
       .delete(peopleTable)

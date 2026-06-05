@@ -39,6 +39,7 @@ export function serializeTenant(
     name: t.name,
     slug: t.slug,
     status: t.status,
+    dataSourceProvider: t.dataSourceProvider,
     airtableBaseId: t.airtableBaseId ?? null,
     airtableConnected: t.airtableConnected,
     requiredFieldsMapped,
@@ -160,9 +161,15 @@ export function serializePosition(p: PositionRow) {
   };
 }
 
-export function serializeMapping(m: SchemaMappingRow) {
+export function serializeMapping(
+  m: SchemaMappingRow,
+  provider: string,
+) {
   return {
     tenantId: m.tenantId,
+    // The provider the mapping's source object/field references are interpreted
+    // against (resolved from the tenant). Canonical field keys stay neutral.
+    provider,
     entities: m.entities,
   };
 }

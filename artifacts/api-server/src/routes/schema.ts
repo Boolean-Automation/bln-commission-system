@@ -1,6 +1,11 @@
 import { Router, type IRouter } from "express";
 import { eq } from "drizzle-orm";
-import { db, schemaMappingsTable, type EntityMapping } from "@workspace/db";
+import {
+  db,
+  schemaMappingsTable,
+  tenantsTable,
+  type EntityMapping,
+} from "@workspace/db";
 import {
   GetSchemaMappingParams,
   GetSchemaMappingResponse,
@@ -10,10 +15,19 @@ import {
 } from "@workspace/api-zod";
 import { requireTenantAccess } from "../lib/rbac";
 import { serializeMapping } from "../lib/serialize";
+import { DEFAULT_PROVIDER_KEY } from "../lib/providers";
 
 const router: IRouter = Router();
 
 router.use("/tenants/:tenantId", requireTenantAccess);
+
+async function tenantProviderKey(tenantId: string): Promise<string> {
+  const [tenant] = await db
+    .select({ dataSourceProvider: tenantsTable.dataSourceProvider })
+    .from(tenantsTable)
+    .where(eq(tenantsTable.id, tenantId));
+  return tenant?.dataSourceProvider || DEFAULT_PROVIDER_KEY;
+}
 
 router.get(
   "/tenants/:tenantId/schema-mapping",
@@ -27,16 +41,18 @@ router.get(
       .select()
       .from(schemaMappingsTable)
       .where(eq(schemaMappingsTable.tenantId, params.data.tenantId));
+    const provider = await tenantProviderKey(params.data.tenantId);
     if (!mapping) {
       res.json(
         GetSchemaMappingResponse.parse({
           tenantId: params.data.tenantId,
+          provider,
           entities: [],
         }),
       );
       return;
     }
-    res.json(GetSchemaMappingResponse.parse(serializeMapping(mapping)));
+    res.json(GetSchemaMappingResponse.parse(serializeMapping(mapping, provider)));
   },
 );
 
@@ -62,7 +78,10 @@ router.put(
         set: { entities },
       })
       .returning();
-    res.json(UpdateSchemaMappingResponse.parse(serializeMapping(updated!)));
+    const provider = await tenantProviderKey(params.data.tenantId);
+    res.json(
+      UpdateSchemaMappingResponse.parse(serializeMapping(updated!, provider)),
+    );
   },
 );
 

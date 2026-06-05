@@ -12,7 +12,7 @@ export interface FieldMapping {
   required: boolean;
   mapped: boolean;
   /** @nullable */
-  airtableFieldId?: string | null;
+  sourceFieldId?: string | null;
   /** @nullable */
-  airtableFieldName?: string | null;
+  sourceFieldName?: string | null;
 }

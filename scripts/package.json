@@ -6,6 +6,7 @@
   "scripts": {
     "hello": "tsx ./src/hello.ts",
     "seed": "tsx ./src/seedParagon.ts",
+    "migrate:mapping-field-keys": "tsx ./src/migrateMappingFieldKeys.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

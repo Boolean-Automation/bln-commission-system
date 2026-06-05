@@ -7,8 +7,11 @@ export type MappedField = {
   label: string;
   required: boolean;
   mapped: boolean;
-  airtableFieldId: string | null;
-  airtableFieldName: string | null;
+  // Provider-neutral reference to the source object's field. For Airtable these
+  // are the column id/name; other providers populate them with their own field
+  // identifier/name. The canonical key on the left stays provider-independent.
+  sourceFieldId: string | null;
+  sourceFieldName: string | null;
 };
 
 export type EntityMapping = {

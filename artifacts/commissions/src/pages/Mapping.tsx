@@ -9,6 +9,7 @@ import {
   getGetAirtableTablesQueryKey,
   useSetAirtableBase,
   useSyncFromAirtable,
+  useListProviders,
   type SyncResult
 } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -70,6 +71,51 @@ function AirtableTableExplorer({ baseId }: { baseId: string }) {
         ))}
       </Accordion>
     </div>
+  );
+}
+
+function DataSourceProviderPanel({ activeTenantId }: { activeTenantId: string }) {
+  const { data: tenant } = useGetTenant(activeTenantId, {
+    query: { enabled: !!activeTenantId, queryKey: getGetTenantQueryKey(activeTenantId) },
+  });
+  const { data: providerList } = useListProviders();
+
+  const providers = providerList?.providers ?? [];
+  const activeKey = tenant?.dataSourceProvider ?? "airtable";
+
+  return (
+    <Card>
+      <CardHeader className="pb-4">
+        <CardTitle className="flex items-center gap-2 text-lg">
+          <Database className="w-5 h-5 text-primary" />
+          Data Source Provider
+        </CardTitle>
+        <CardDescription className="mt-1">
+          Choose where this tenant's people and jobs come from. More providers are
+          on the way — Airtable is available today.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-2 max-w-[320px]">
+          <label className="text-sm font-medium text-foreground/80">Provider</label>
+          {/* Single provider today; the Select is structured so additional
+              providers slot in as they become available (shown disabled). */}
+          <Select value={activeKey} disabled>
+            <SelectTrigger className="w-full bg-background">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {providers.map((p) => (
+                <SelectItem key={p.key} value={p.key} disabled={!p.available}>
+                  {p.label}
+                  {!p.available ? " (coming soon)" : ""}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -260,6 +306,8 @@ export function Mapping() {
         <h1 className="text-2xl font-bold tracking-tight text-foreground">Data Integration</h1>
         <p className="text-muted-foreground text-sm mt-1">Connect your Airtable base and map fields to reconcile external data into the commission engine.</p>
       </div>
+
+      <DataSourceProviderPanel activeTenantId={activeTenantId} />
 
       <AirtableConnectionPanel activeTenantId={activeTenantId} />
 

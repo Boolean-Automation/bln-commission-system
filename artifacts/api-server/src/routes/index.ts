@@ -10,6 +10,7 @@ import rulesRouter from "./rules";
 import commissionsRouter from "./commissions";
 import insightsRouter from "./insights";
 import airtableRouter from "./airtable";
+import providersRouter from "./providers";
 import { requireAuth } from "../lib/rbac";
 
 const router: IRouter = Router();
@@ -31,5 +32,6 @@ router.use(rulesRouter);
 router.use(commissionsRouter);
 router.use(insightsRouter);
 router.use(airtableRouter);
+router.use(providersRouter);
 
 export default router;

@@ -201,6 +201,8 @@ export interface Tenant {
   name: string;
   slug: string;
   status: TenantStatus;
+  /** Key of the data-source provider this tenant ingests from (e.g. "airtable"). */
+  dataSourceProvider: string;
   /** @nullable */
   airtableBaseId?: string | null;
   airtableConnected: boolean;
@@ -268,9 +270,9 @@ export interface FieldMapping {
   required: boolean;
   mapped: boolean;
   /** @nullable */
-  airtableFieldId?: string | null;
+  sourceFieldId?: string | null;
   /** @nullable */
-  airtableFieldName?: string | null;
+  sourceFieldName?: string | null;
 }
 
 export interface EntityMapping {
@@ -286,7 +288,20 @@ export interface EntityMapping {
 
 export interface SchemaMapping {
   tenantId: string;
+  /** Data-source provider the source object/field references are interpreted against. */
+  provider: string;
   entities: EntityMapping[];
+}
+
+export interface ProviderInfo {
+  key: string;
+  label: string;
+  /** False for providers listed as "coming soon" with no concrete implementation yet. */
+  available: boolean;
+}
+
+export interface ListProviders {
+  providers: ProviderInfo[];
 }
 
 export interface SchemaMappingInput {

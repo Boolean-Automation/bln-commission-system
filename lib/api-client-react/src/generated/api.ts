@@ -45,6 +45,7 @@ import type {
   HealthStatus,
   Job,
   ListCommissionsParams,
+  ListProviders,
   LogoutSuccess,
   Membership,
   MembershipInput,
@@ -2564,6 +2565,83 @@ export function useListRuleModules<TData = Awaited<ReturnType<typeof listRuleMod
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getListRuleModulesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getListProvidersUrl = () => {
+
+
+
+
+  return `/api/providers`
+}
+
+/**
+ * @summary List the available data-source providers
+ */
+export const listProviders = async ( options?: RequestInit): Promise<ListProviders> => {
+
+  return customFetch<ListProviders>(getListProvidersUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListProvidersQueryKey = () => {
+    return [
+    `/api/providers`
+    ] as const;
+    }
+
+
+export const getListProvidersQueryOptions = <TData = Awaited<ReturnType<typeof listProviders>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listProviders>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListProvidersQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listProviders>>> = ({ signal }) => listProviders({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listProviders>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListProvidersQueryResult = NonNullable<Awaited<ReturnType<typeof listProviders>>>
+export type ListProvidersQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List the available data-source providers
+ */
+
+export function useListProviders<TData = Awaited<ReturnType<typeof listProviders>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listProviders>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListProvidersQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

@@ -105,8 +105,8 @@ export const FieldMappingEditor = forwardRef<
           entity.tableId = null;
           entity.tableName = null;
           for (const f of entity.fields) {
-            f.airtableFieldName = null;
-            f.airtableFieldId = null;
+            f.sourceFieldName = null;
+            f.sourceFieldId = null;
             f.mapped = false;
           }
           changed = true;
@@ -160,8 +160,8 @@ export const FieldMappingEditor = forwardRef<
       // Columns differ between tables, so any prior field-to-column mappings no
       // longer apply — clear them and force a re-map.
       for (const f of entity.fields) {
-        f.airtableFieldName = null;
-        f.airtableFieldId = null;
+        f.sourceFieldName = null;
+        f.sourceFieldId = null;
         f.mapped = false;
       }
       return draft;
@@ -177,8 +177,8 @@ export const FieldMappingEditor = forwardRef<
     setEntitiesState((prev) => {
       const draft = JSON.parse(JSON.stringify(prev)) as EntityMapping[];
       const field = draft[entityIdx]!.fields[fieldIdx]!;
-      field.airtableFieldName = columnName || null;
-      field.airtableFieldId = columnId;
+      field.sourceFieldName = columnName || null;
+      field.sourceFieldId = columnId;
       field.mapped = !!columnName.trim();
       return draft;
     });
@@ -310,7 +310,7 @@ export const FieldMappingEditor = forwardRef<
                           </TableCell>
                           <TableCell>
                             <AirtableColumnCombobox
-                              value={field.airtableFieldName ?? null}
+                              value={field.sourceFieldName ?? null}
                               options={columns.map((c) => ({
                                 name: c.name,
                                 type: c.type,

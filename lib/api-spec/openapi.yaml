@@ -639,6 +639,19 @@ paths:
                 items:
                   $ref: "#/components/schemas/RuleModule"
 
+  /providers:
+    get:
+      operationId: listProviders
+      tags: [providers]
+      summary: List the available data-source providers
+      responses:
+        "200":
+          description: Data-source provider catalog
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListProviders"
+
   /tenants/{tenantId}/plan:
     get:
       operationId: getActivePlan
@@ -1244,7 +1257,7 @@ components:
 
     Tenant:
       type: object
-      required: [id, name, slug, status, airtableConnected, requiredFieldsMapped, peopleCount, jobsCount, entryCount, createdAt]
+      required: [id, name, slug, status, dataSourceProvider, airtableConnected, requiredFieldsMapped, peopleCount, jobsCount, entryCount, createdAt]
       properties:
         id:
           type: string
@@ -1255,6 +1268,9 @@ components:
         status:
           type: string
           enum: [active, paused]
+        dataSourceProvider:
+          type: string
+          description: Key of the data-source provider this tenant ingests from (e.g. "airtable").
         airtableBaseId:
           type: ["string", "null"]
         airtableConnected:
@@ -1349,9 +1365,9 @@ components:
           type: boolean
         mapped:
           type: boolean
-        airtableFieldId:
+        sourceFieldId:
           type: ["string", "null"]
-        airtableFieldName:
+        sourceFieldName:
           type: ["string", "null"]
 
     EntityMapping:
@@ -1377,14 +1393,38 @@ components:
 
     SchemaMapping:
       type: object
-      required: [tenantId, entities]
+      required: [tenantId, provider, entities]
       properties:
         tenantId:
           type: string
+        provider:
+          type: string
+          description: Data-source provider the source object/field references are interpreted against.
         entities:
           type: array
           items:
             $ref: "#/components/schemas/EntityMapping"
+
+    ProviderInfo:
+      type: object
+      required: [key, label, available]
+      properties:
+        key:
+          type: string
+        label:
+          type: string
+        available:
+          type: boolean
+          description: False for providers listed as "coming soon" with no concrete implementation yet.
+
+    ListProviders:
+      type: object
+      required: [providers]
+      properties:
+        providers:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProviderInfo"
 
     SchemaMappingInput:
       type: object

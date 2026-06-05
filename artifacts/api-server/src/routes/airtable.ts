@@ -12,7 +12,7 @@ import {
   SyncFromAirtableResponse,
 } from "@workspace/api-zod";
 import { listBases, getBaseTables } from "../lib/airtable";
-import { syncTenantFromAirtable } from "../lib/airtableSync";
+import { syncTenant } from "../lib/sync";
 import { serializeTenant, isMappingComplete } from "../lib/serialize";
 import { tenantCounts } from "../lib/tenantCounts";
 import { requireTenantAccess, requireStaff } from "../lib/rbac";
@@ -94,7 +94,7 @@ router.post("/tenants/:tenantId/sync", async (req, res): Promise<void> => {
     return;
   }
   try {
-    const result = await syncTenantFromAirtable(params.data.tenantId);
+    const result = await syncTenant(params.data.tenantId);
     const ranAt = new Date().toISOString();
     res.json(
       SyncFromAirtableResponse.parse({
