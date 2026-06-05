@@ -98,11 +98,12 @@ export const GetAuthContextResponse = zod.object({
   "lastName": zod.string().nullable(),
   "profileImageUrl": zod.string().nullable()
 }),zod.null()]),
+  "isSuperOperator": zod.boolean(),
   "isPlatformOperator": zod.boolean(),
   "memberships": zod.array(zod.object({
   "id": zod.string(),
   "userId": zod.string(),
-  "role": zod.enum(['platform_operator', 'admin', 'rep']),
+  "role": zod.enum(['super_operator', 'platform_operator', 'admin', 'rep']),
   "tenantId": zod.string().nullable(),
   "personId": zod.string().nullable(),
   "createdAt": zod.string(),
@@ -114,7 +115,7 @@ export const GetAuthContextResponse = zod.object({
   "id": zod.string(),
   "name": zod.string(),
   "slug": zod.string(),
-  "role": zod.enum(['platform_operator', 'admin', 'rep'])
+  "role": zod.enum(['super_operator', 'platform_operator', 'admin', 'rep'])
 }))
 })
 
@@ -142,7 +143,7 @@ export const ListTenantMembersParams = zod.object({
 export const ListTenantMembersResponseItem = zod.object({
   "id": zod.string(),
   "userId": zod.string(),
-  "role": zod.enum(['platform_operator', 'admin', 'rep']),
+  "role": zod.enum(['super_operator', 'platform_operator', 'admin', 'rep']),
   "tenantId": zod.string().nullable(),
   "personId": zod.string().nullable(),
   "createdAt": zod.string(),
@@ -169,7 +170,7 @@ export const CreateTenantMemberBody = zod.object({
 export const CreateTenantMemberResponse = zod.object({
   "id": zod.string(),
   "userId": zod.string(),
-  "role": zod.enum(['platform_operator', 'admin', 'rep']),
+  "role": zod.enum(['super_operator', 'platform_operator', 'admin', 'rep']),
   "tenantId": zod.string().nullable(),
   "personId": zod.string().nullable(),
   "createdAt": zod.string(),
@@ -195,7 +196,7 @@ export const UpdateTenantMemberBody = zod.object({
 export const UpdateTenantMemberResponse = zod.object({
   "id": zod.string(),
   "userId": zod.string(),
-  "role": zod.enum(['platform_operator', 'admin', 'rep']),
+  "role": zod.enum(['super_operator', 'platform_operator', 'admin', 'rep']),
   "tenantId": zod.string().nullable(),
   "personId": zod.string().nullable(),
   "createdAt": zod.string(),
@@ -214,6 +215,56 @@ export const DeleteTenantMemberParams = zod.object({
 })
 
 export const DeleteTenantMemberResponse = zod.object({
+  "id": zod.string(),
+  "deleted": zod.boolean()
+})
+
+
+/**
+ * @summary List Boolean operators (operator only)
+ */
+export const ListOperatorsResponseItem = zod.object({
+  "id": zod.string(),
+  "userId": zod.string(),
+  "role": zod.enum(['super_operator', 'platform_operator', 'admin', 'rep']),
+  "tenantId": zod.string().nullable(),
+  "personId": zod.string().nullable(),
+  "createdAt": zod.string(),
+  "userEmail": zod.string().nullish(),
+  "userName": zod.string().nullish(),
+  "personName": zod.string().nullish()
+})
+export const ListOperatorsResponse = zod.array(ListOperatorsResponseItem)
+
+
+/**
+ * @summary Grant a user Boolean Admin access (Boolean Super Admin only)
+ */
+export const CreateOperatorBody = zod.object({
+  "userId": zod.string()
+})
+
+export const CreateOperatorResponse = zod.object({
+  "id": zod.string(),
+  "userId": zod.string(),
+  "role": zod.enum(['super_operator', 'platform_operator', 'admin', 'rep']),
+  "tenantId": zod.string().nullable(),
+  "personId": zod.string().nullable(),
+  "createdAt": zod.string(),
+  "userEmail": zod.string().nullish(),
+  "userName": zod.string().nullish(),
+  "personName": zod.string().nullish()
+})
+
+
+/**
+ * @summary Revoke a user's Boolean Admin access (Boolean Super Admin only)
+ */
+export const DeleteOperatorParams = zod.object({
+  "membershipId": zod.coerce.string()
+})
+
+export const DeleteOperatorResponse = zod.object({
   "id": zod.string(),
   "deleted": zod.boolean()
 })

@@ -6,9 +6,12 @@ import { z } from "zod/v4";
 /**
  * Links an authenticated user (users.id) to a role in the system.
  *
- * Three tiers:
- * - platform_operator: Boolean Automation staff; manages ALL tenants. `tenantId` is null.
- * - admin: tenant admin (RevOps/Finance) for a single tenant. `tenantId` set, `personId` null.
+ * Four tiers:
+ * - super_operator: Boolean Super Admin; full platform access PLUS the sole role that can
+ *   grant/revoke platform operators (Boolean Admins). `tenantId` is null.
+ * - platform_operator: Boolean Admin; Boolean Automation staff that manages ALL tenants.
+ *   `tenantId` is null.
+ * - admin: company admin (RevOps/Finance) for a single tenant. `tenantId` set, `personId` null.
  * - rep: sales rep, read-only access to their own data within a tenant. `tenantId` set and
  *   `personId` links to the synced people row.
  */
@@ -37,6 +40,11 @@ export const membershipsTable = pgTable(
     uniqueIndex("memberships_operator_user_uniq")
       .on(table.userId)
       .where(sql`${table.role} = 'platform_operator'`),
+    // Same rationale as above for the super-operator tier (Boolean Super Admin):
+    // at most one super_operator row per user.
+    uniqueIndex("memberships_super_operator_user_uniq")
+      .on(table.userId)
+      .where(sql`${table.role} = 'super_operator'`),
   ],
 );
 
@@ -47,5 +55,10 @@ export const insertMembershipSchema = createInsertSchema(membershipsTable).omit(
 export type InsertMembership = z.infer<typeof insertMembershipSchema>;
 export type Membership = typeof membershipsTable.$inferSelect;
 
-export const MEMBERSHIP_ROLES = ["platform_operator", "admin", "rep"] as const;
+export const MEMBERSHIP_ROLES = [
+  "super_operator",
+  "platform_operator",
+  "admin",
+  "rep",
+] as const;
 export type MembershipRole = (typeof MEMBERSHIP_ROLES)[number];

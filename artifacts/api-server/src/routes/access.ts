@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import {
   db,
   membershipsTable,
@@ -20,9 +20,15 @@ import {
   UpdateTenantMemberResponse,
   DeleteTenantMemberParams,
   DeleteTenantMemberResponse,
+  ListOperatorsResponse,
+  CreateOperatorBody,
+  CreateOperatorResponse,
+  DeleteOperatorParams,
+  DeleteOperatorResponse,
 } from "@workspace/api-zod";
 import {
   requireOperator,
+  requireSuperOperator,
   requireTenantAccess,
   type ResolvedMembership,
 } from "../lib/rbac";
@@ -64,6 +70,7 @@ router.get("/me", (req, res): void => {
     GetAuthContextResponse.parse({
       user: ctx.user,
       isPlatformOperator: ctx.isPlatformOperator,
+      isSuperOperator: ctx.isSuperOperator,
       memberships: ctx.memberships.map(serializeResolvedMembership),
       accessibleTenants: ctx.accessibleTenants,
     }),
@@ -326,6 +333,140 @@ router.delete(
     await db.delete(membershipsTable).where(eq(membershipsTable.id, membershipId));
     res.json(
       DeleteTenantMemberResponse.parse({ id: membershipId, deleted: true }),
+    );
+  },
+);
+
+// Platform operators are global (tenantId null). Managed by operators only.
+async function loadOperators() {
+  const rows = await db
+    .select({
+      id: membershipsTable.id,
+      userId: membershipsTable.userId,
+      role: membershipsTable.role,
+      tenantId: membershipsTable.tenantId,
+      personId: membershipsTable.personId,
+      createdAt: membershipsTable.createdAt,
+      userEmail: usersTable.email,
+      userFirstName: usersTable.firstName,
+      userLastName: usersTable.lastName,
+    })
+    .from(membershipsTable)
+    .leftJoin(usersTable, eq(membershipsTable.userId, usersTable.id))
+    .where(
+      and(
+        inArray(membershipsTable.role, ["super_operator", "platform_operator"]),
+        isNull(membershipsTable.tenantId),
+      ),
+    )
+    .orderBy(membershipsTable.createdAt);
+
+  return rows.map((r) =>
+    serializeMembership({
+      id: r.id,
+      userId: r.userId,
+      role: r.role,
+      tenantId: r.tenantId,
+      personId: r.personId,
+      createdAt: r.createdAt,
+      userEmail: r.userEmail ?? null,
+      userName:
+        [r.userFirstName, r.userLastName].filter(Boolean).join(" ").trim() ||
+        null,
+      personName: null,
+    }),
+  );
+}
+
+router.get("/operators", requireOperator, async (_req, res): Promise<void> => {
+  res.json(ListOperatorsResponse.parse(await loadOperators()));
+});
+
+// Only a Boolean Super Admin may grant a Boolean Admin (platform_operator).
+router.post(
+  "/operators",
+  requireSuperOperator,
+  async (req, res): Promise<void> => {
+    const body = CreateOperatorBody.safeParse(req.body);
+    if (!body.success) {
+      res.status(400).json({ error: body.error.message });
+      return;
+    }
+    const { userId } = body.data;
+
+    const [user] = await db
+      .select({ id: usersTable.id })
+      .from(usersTable)
+      .where(eq(usersTable.id, userId));
+    if (!user) {
+      res.status(400).json({ error: "User not found" });
+      return;
+    }
+
+    const existingOps = await loadOperators();
+    const already = existingOps.find((m) => m.userId === userId);
+    if (already) {
+      res.json(CreateOperatorResponse.parse(already));
+      return;
+    }
+
+    const [created] = await db
+      .insert(membershipsTable)
+      .values({
+        userId,
+        role: "platform_operator",
+        tenantId: null,
+        personId: null,
+      })
+      .returning();
+
+    const [serialized] = await loadOneMember(created!.id);
+    res.json(CreateOperatorResponse.parse(serialized));
+  },
+);
+
+// Only a Boolean Super Admin may revoke a Boolean Admin. Super Admin rows are
+// protected and cannot be removed through this endpoint.
+router.delete(
+  "/operators/:membershipId",
+  requireSuperOperator,
+  async (req, res): Promise<void> => {
+    const params = DeleteOperatorParams.safeParse(req.params);
+    if (!params.success) {
+      res.status(400).json({ error: params.error.message });
+      return;
+    }
+    const { membershipId } = params.data;
+
+    const [existing] = await db
+      .select()
+      .from(membershipsTable)
+      .where(
+        and(
+          eq(membershipsTable.id, membershipId),
+          isNull(membershipsTable.tenantId),
+          inArray(membershipsTable.role, [
+            "super_operator",
+            "platform_operator",
+          ]),
+        ),
+      );
+    if (!existing) {
+      res.status(404).json({ error: "Operator not found" });
+      return;
+    }
+    if (existing.role === "super_operator") {
+      res.status(400).json({
+        error: "A Boolean Super Admin cannot be removed here",
+      });
+      return;
+    }
+
+    await db
+      .delete(membershipsTable)
+      .where(eq(membershipsTable.id, membershipId));
+    res.json(
+      DeleteOperatorResponse.parse({ id: membershipId, deleted: true }),
     );
   },
 );

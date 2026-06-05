@@ -1,5 +1,5 @@
 import { type Request, type Response, type NextFunction } from "express";
-import { eq, sql } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import {
   db,
   membershipsTable,
@@ -29,10 +29,15 @@ export interface ResolvedTenant {
 
 export interface AuthContextResolved {
   user: AuthUser;
+  isSuperOperator: boolean;
   isPlatformOperator: boolean;
   memberships: ResolvedMembership[];
   accessibleTenants: ResolvedTenant[];
 }
+
+// Roles that grant full, all-tenant platform access (Boolean Super Admin +
+// Boolean Admin). Both are treated as "platform operators" for access checks.
+const OPERATOR_ROLES = ["super_operator", "platform_operator"] as const;
 
 declare global {
   namespace Express {
@@ -56,13 +61,15 @@ async function provisionMemberships(user: AuthUser): Promise<void> {
   const [existingOperator] = await db
     .select({ id: membershipsTable.id })
     .from(membershipsTable)
-    .where(eq(membershipsTable.role, "platform_operator"))
+    .where(inArray(membershipsTable.role, [...OPERATOR_ROLES]))
     .limit(1);
 
   if (!existingOperator) {
+    // Bootstrap the first-ever user as the Boolean Super Admin so a fresh
+    // system has an account able to grant platform operators.
     await db
       .insert(membershipsTable)
-      .values({ userId: user.id, role: "platform_operator", tenantId: null })
+      .values({ userId: user.id, role: "super_operator", tenantId: null })
       .onConflictDoNothing();
     return;
   }
@@ -131,9 +138,15 @@ export async function resolveAuthContext(
     m.userName = userName;
   }
 
-  const isPlatformOperator = memberships.some(
-    (m) => m.role === "platform_operator",
+  const isSuperOperator = memberships.some(
+    (m) => m.role === "super_operator",
   );
+  const isPlatformOperator =
+    isSuperOperator ||
+    memberships.some((m) => m.role === "platform_operator");
+  const topOperatorRole = isSuperOperator
+    ? "super_operator"
+    : "platform_operator";
 
   let accessibleTenants: ResolvedTenant[];
   if (isPlatformOperator) {
@@ -147,7 +160,7 @@ export async function resolveAuthContext(
       .orderBy(tenantsTable.name);
     accessibleTenants = tenants.map((t) => ({
       ...t,
-      role: "platform_operator",
+      role: topOperatorRole,
     }));
   } else {
     const tenantIds = memberships
@@ -174,7 +187,13 @@ export async function resolveAuthContext(
       .map((t) => ({ ...t, role: roleByTenant.get(t.id)! }));
   }
 
-  return { user, isPlatformOperator, memberships, accessibleTenants };
+  return {
+    user,
+    isSuperOperator,
+    isPlatformOperator,
+    memberships,
+    accessibleTenants,
+  };
 }
 
 export function hasTenantAccess(
@@ -220,6 +239,18 @@ export function requireOperator(
 ): void {
   if (!req.authContext?.isPlatformOperator) {
     res.status(403).json({ error: "Platform operator access required" });
+    return;
+  }
+  next();
+}
+
+export function requireSuperOperator(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): void {
+  if (!req.authContext?.isSuperOperator) {
+    res.status(403).json({ error: "Boolean Super Admin access required" });
     return;
   }
   next();

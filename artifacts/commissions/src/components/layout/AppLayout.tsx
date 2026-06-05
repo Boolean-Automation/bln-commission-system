@@ -52,8 +52,9 @@ import {
 } from "lucide-react";
 
 const ROLE_LABELS: Record<string, string> = {
-  platform_operator: "Platform Operator",
-  admin: "Admin",
+  super_operator: "Boolean Super Admin",
+  platform_operator: "Boolean Admin",
+  admin: "Company Admin",
   rep: "Sales Rep",
   none: "No access",
 };

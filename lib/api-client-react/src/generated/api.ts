@@ -52,6 +52,7 @@ import type {
   MobileTokenExchangeRequest,
   MobileTokenExchangeSuccess,
   NotFoundResponse,
+  OperatorInput,
   PayrollLine,
   Person,
   Position,
@@ -992,6 +993,224 @@ export const useDeleteTenantMember = <TError = ErrorType<ForbiddenResponse | Not
         TContext
       > => {
       return useMutation(getDeleteTenantMemberMutationOptions(options));
+    }
+
+export const getListOperatorsUrl = () => {
+
+
+
+
+  return `/api/operators`
+}
+
+/**
+ * @summary List Boolean operators (operator only)
+ */
+export const listOperators = async ( options?: RequestInit): Promise<Membership[]> => {
+
+  return customFetch<Membership[]>(getListOperatorsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListOperatorsQueryKey = () => {
+    return [
+    `/api/operators`
+    ] as const;
+    }
+
+
+export const getListOperatorsQueryOptions = <TData = Awaited<ReturnType<typeof listOperators>>, TError = ErrorType<ForbiddenResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listOperators>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListOperatorsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listOperators>>> = ({ signal }) => listOperators({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listOperators>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListOperatorsQueryResult = NonNullable<Awaited<ReturnType<typeof listOperators>>>
+export type ListOperatorsQueryError = ErrorType<ForbiddenResponse>
+
+
+/**
+ * @summary List Boolean operators (operator only)
+ */
+
+export function useListOperators<TData = Awaited<ReturnType<typeof listOperators>>, TError = ErrorType<ForbiddenResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listOperators>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListOperatorsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getCreateOperatorUrl = () => {
+
+
+
+
+  return `/api/operators`
+}
+
+/**
+ * @summary Grant a user Boolean Admin access (Boolean Super Admin only)
+ */
+export const createOperator = async (operatorInput: OperatorInput, options?: RequestInit): Promise<Membership> => {
+
+  return customFetch<Membership>(getCreateOperatorUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      operatorInput,)
+  }
+);}
+
+
+
+
+export const getCreateOperatorMutationOptions = <TError = ErrorType<BadRequestResponse | ForbiddenResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createOperator>>, TError,{data: BodyType<OperatorInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createOperator>>, TError,{data: BodyType<OperatorInput>}, TContext> => {
+
+const mutationKey = ['createOperator'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createOperator>>, {data: BodyType<OperatorInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createOperator(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateOperatorMutationResult = NonNullable<Awaited<ReturnType<typeof createOperator>>>
+    export type CreateOperatorMutationBody = BodyType<OperatorInput>
+    export type CreateOperatorMutationError = ErrorType<BadRequestResponse | ForbiddenResponse>
+
+    /**
+ * @summary Grant a user Boolean Admin access (Boolean Super Admin only)
+ */
+export const useCreateOperator = <TError = ErrorType<BadRequestResponse | ForbiddenResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createOperator>>, TError,{data: BodyType<OperatorInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createOperator>>,
+        TError,
+        {data: BodyType<OperatorInput>},
+        TContext
+      > => {
+      return useMutation(getCreateOperatorMutationOptions(options));
+    }
+
+export const getDeleteOperatorUrl = (membershipId: string,) => {
+
+
+
+
+  return `/api/operators/${membershipId}`
+}
+
+/**
+ * @summary Revoke a user's Boolean Admin access (Boolean Super Admin only)
+ */
+export const deleteOperator = async (membershipId: string, options?: RequestInit): Promise<DeleteMembershipResult> => {
+
+  return customFetch<DeleteMembershipResult>(getDeleteOperatorUrl(membershipId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteOperatorMutationOptions = <TError = ErrorType<BadRequestResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteOperator>>, TError,{membershipId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteOperator>>, TError,{membershipId: string}, TContext> => {
+
+const mutationKey = ['deleteOperator'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteOperator>>, {membershipId: string}> = (props) => {
+          const {membershipId} = props ?? {};
+
+          return  deleteOperator(membershipId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteOperatorMutationResult = NonNullable<Awaited<ReturnType<typeof deleteOperator>>>
+
+    export type DeleteOperatorMutationError = ErrorType<BadRequestResponse | ForbiddenResponse | NotFoundResponse>
+
+    /**
+ * @summary Revoke a user's Boolean Admin access (Boolean Super Admin only)
+ */
+export const useDeleteOperator = <TError = ErrorType<BadRequestResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteOperator>>, TError,{membershipId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteOperator>>,
+        TError,
+        {membershipId: string},
+        TContext
+      > => {
+      return useMutation(getDeleteOperatorMutationOptions(options));
     }
 
 export const getHealthCheckUrl = () => {

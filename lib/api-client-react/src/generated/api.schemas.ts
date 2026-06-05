@@ -59,6 +59,7 @@ export type MembershipRole = typeof MembershipRole[keyof typeof MembershipRole];
 
 
 export const MembershipRole = {
+  super_operator: 'super_operator',
   platform_operator: 'platform_operator',
   admin: 'admin',
   rep: 'rep',
@@ -110,6 +111,10 @@ export interface MembershipUpdate {
   personId?: string | null;
 }
 
+export interface OperatorInput {
+  userId: string;
+}
+
 export interface DeleteMembershipResult {
   id: string;
   deleted: boolean;
@@ -124,6 +129,7 @@ export interface AccessibleTenant {
 
 export interface AuthContext {
   user: AuthUser | null;
+  isSuperOperator: boolean;
   isPlatformOperator: boolean;
   memberships: Membership[];
   accessibleTenants: AccessibleTenant[];

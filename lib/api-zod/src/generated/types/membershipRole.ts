@@ -10,6 +10,7 @@ export type MembershipRole = typeof MembershipRole[keyof typeof MembershipRole];
 
 
 export const MembershipRole = {
+  super_operator: 'super_operator',
   platform_operator: 'platform_operator',
   admin: 'admin',
   rep: 'rep',

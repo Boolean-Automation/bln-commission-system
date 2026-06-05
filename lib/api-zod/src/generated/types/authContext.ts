@@ -11,6 +11,7 @@ import type { Membership } from './membership';
 
 export interface AuthContext {
   user: AuthUser | null;
+  isSuperOperator: boolean;
   isPlatformOperator: boolean;
   memberships: Membership[];
   accessibleTenants: AccessibleTenant[];

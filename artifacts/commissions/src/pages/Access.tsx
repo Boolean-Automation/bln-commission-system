@@ -7,6 +7,10 @@ import {
   useCreateTenantMember,
   useUpdateTenantMember,
   useDeleteTenantMember,
+  useListOperators,
+  getListOperatorsQueryKey,
+  useCreateOperator,
+  useDeleteOperator,
 } from "@workspace/api-client-react";
 import type { Membership } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -34,24 +38,27 @@ import {
 import { Loader2, UserPlus, Trash2 } from "lucide-react";
 
 const ROLE_LABELS: Record<string, string> = {
-  platform_operator: "Platform Operator",
-  admin: "Admin",
+  super_operator: "Boolean Super Admin",
+  platform_operator: "Boolean Admin",
+  admin: "Company Admin",
   rep: "Sales Rep",
 };
 
 function roleBadge(role: string) {
   const variant =
-    role === "platform_operator"
+    role === "super_operator"
       ? "default"
-      : role === "admin"
-        ? "secondary"
-        : "outline";
+      : role === "platform_operator"
+        ? "default"
+        : role === "admin"
+          ? "secondary"
+          : "outline";
   return <Badge variant={variant as any}>{ROLE_LABELS[role] ?? role}</Badge>;
 }
 
 export function Access() {
   const { activeTenantId, activeTenant } = useTenant();
-  const { isOperator } = useAuthContext();
+  const { isOperator, isSuperOperator } = useAuthContext();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -68,6 +75,7 @@ export function Access() {
 
   const [newUserId, setNewUserId] = useState<string>("");
   const [newRole, setNewRole] = useState<"admin" | "rep">("admin");
+  const [newOperatorUserId, setNewOperatorUserId] = useState<string>("");
 
   const invalidate = () =>
     queryClient.invalidateQueries({
@@ -77,6 +85,59 @@ export function Access() {
   const createMutation = useCreateTenantMember();
   const updateMutation = useUpdateTenantMember();
   const deleteMutation = useDeleteTenantMember();
+
+  const operatorsQuery = useListOperators({
+    query: { enabled: isOperator, queryKey: getListOperatorsQueryKey() },
+  });
+  const createOperatorMutation = useCreateOperator();
+  const deleteOperatorMutation = useDeleteOperator();
+
+  const invalidateOperators = () =>
+    queryClient.invalidateQueries({ queryKey: getListOperatorsQueryKey() });
+
+  const operators = operatorsQuery.data ?? [];
+  const operatorUserIds = new Set(operators.map((o) => o.userId));
+  const assignableOperatorUsers = (usersQuery.data ?? []).filter(
+    (u) => !operatorUserIds.has(u.id),
+  );
+
+  const handleAddOperator = () => {
+    if (!newOperatorUserId) return;
+    createOperatorMutation.mutate(
+      { data: { userId: newOperatorUserId } },
+      {
+        onSuccess: () => {
+          toast({ title: "Platform operator added" });
+          setNewOperatorUserId("");
+          invalidateOperators();
+        },
+        onError: (err: any) =>
+          toast({
+            title: "Could not add operator",
+            description: err?.message,
+            variant: "destructive",
+          }),
+      },
+    );
+  };
+
+  const handleRemoveOperator = (m: Membership) => {
+    deleteOperatorMutation.mutate(
+      { membershipId: m.id },
+      {
+        onSuccess: () => {
+          toast({ title: "Platform operator removed" });
+          invalidateOperators();
+        },
+        onError: (err: any) =>
+          toast({
+            title: "Could not remove operator",
+            description: err?.message,
+            variant: "destructive",
+          }),
+      },
+    );
+  };
 
   const members = membersQuery.data ?? [];
   const memberUserIds = new Set(members.map((m) => m.userId));
@@ -157,6 +218,130 @@ export function Access() {
           they can do.
         </p>
       </div>
+
+      {isOperator && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Boolean operators</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Boolean Admins have full access to every company. Only a Boolean
+              Super Admin can add or remove a Boolean Admin.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {isSuperOperator && (
+              <div className="flex flex-wrap items-end gap-3">
+                <div className="min-w-[220px] flex-1">
+                  <label className="mb-1 block text-xs text-muted-foreground">
+                    User
+                  </label>
+                  <Select
+                    value={newOperatorUserId}
+                    onValueChange={setNewOperatorUserId}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a user" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {assignableOperatorUsers.length === 0 ? (
+                        <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                          No users available
+                        </div>
+                      ) : (
+                        assignableOperatorUsers.map((u) => (
+                          <SelectItem key={u.id} value={u.id}>
+                            {[u.firstName, u.lastName]
+                              .filter(Boolean)
+                              .join(" ") ||
+                              u.email ||
+                              u.id}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button
+                  onClick={handleAddOperator}
+                  disabled={
+                    !newOperatorUserId || createOperatorMutation.isPending
+                  }
+                  className="gap-2"
+                >
+                  {createOperatorMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <UserPlus className="h-4 w-4" />
+                  )}
+                  Make Boolean Admin
+                </Button>
+              </div>
+            )}
+
+            {operatorsQuery.isLoading ? (
+              <div className="flex justify-center py-6">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              </div>
+            ) : operators.length === 0 ? (
+              <p className="py-4 text-center text-sm text-muted-foreground">
+                No Boolean operators yet.
+              </p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>User</TableHead>
+                    <TableHead>Role</TableHead>
+                    {isSuperOperator && (
+                      <TableHead className="text-right">Actions</TableHead>
+                    )}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {operators.map((m) => {
+                    const isSuperRow = m.role === "super_operator";
+                    return (
+                      <TableRow key={m.id}>
+                        <TableCell>
+                          <div className="font-medium">
+                            {m.userName || m.userEmail || m.userId}
+                          </div>
+                          {m.userEmail && m.userName && (
+                            <div className="text-xs text-muted-foreground">
+                              {m.userEmail}
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell>{roleBadge(m.role)}</TableCell>
+                        {isSuperOperator && (
+                          <TableCell className="text-right">
+                            {isSuperRow ? (
+                              <span className="text-xs text-muted-foreground">
+                                Protected
+                              </span>
+                            ) : (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleRemoveOperator(m)}
+                                disabled={deleteOperatorMutation.isPending}
+                                className="gap-1 text-destructive hover:text-destructive"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                                Remove
+                              </Button>
+                            )}
+                          </TableCell>
+                        )}
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {isOperator && (
         <Card>

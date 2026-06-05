@@ -58,6 +58,7 @@ export * from './membershipUpdateRole';
 export * from './mobileTokenExchangeRequest';
 export * from './mobileTokenExchangeSuccess';
 export * from './notFoundResponse';
+export * from './operatorInput';
 export * from './payrollLine';
 export * from './person';
 export * from './position';

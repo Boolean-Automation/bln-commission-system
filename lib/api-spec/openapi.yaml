@@ -259,6 +259,63 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+  /operators:
+    get:
+      tags: [access]
+      operationId: listOperators
+      summary: List Boolean operators (operator only)
+      responses:
+        "200":
+          description: Platform operator memberships
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Membership"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      tags: [access]
+      operationId: createOperator
+      summary: Grant a user Boolean Admin access (Boolean Super Admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OperatorInput"
+      responses:
+        "200":
+          description: Created operator membership
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Membership"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /operators/{membershipId}:
+    delete:
+      tags: [access]
+      operationId: deleteOperator
+      summary: Revoke a user's Boolean Admin access (Boolean Super Admin only)
+      parameters:
+        - $ref: "#/components/parameters/MembershipId"
+      responses:
+        "200":
+          description: Deleted operator membership
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteMembershipResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /healthz:
     get:
       operationId: healthCheck
@@ -1041,7 +1098,7 @@ components:
 
     MembershipRole:
       type: string
-      enum: [platform_operator, admin, rep]
+      enum: [super_operator, platform_operator, admin, rep]
 
     Membership:
       type: object
@@ -1087,6 +1144,13 @@ components:
         personId:
           type: [string, 'null']
 
+    OperatorInput:
+      type: object
+      required: [userId]
+      properties:
+        userId:
+          type: string
+
     DeleteMembershipResult:
       type: object
       required: [id, deleted]
@@ -1111,12 +1175,21 @@ components:
 
     AuthContext:
       type: object
-      required: [user, isPlatformOperator, memberships, accessibleTenants]
+      required:
+        [
+          user,
+          isSuperOperator,
+          isPlatformOperator,
+          memberships,
+          accessibleTenants,
+        ]
       properties:
         user:
           oneOf:
             - $ref: '#/components/schemas/AuthUser'
             - type: 'null'
+        isSuperOperator:
+          type: boolean
         isPlatformOperator:
           type: boolean
         memberships:

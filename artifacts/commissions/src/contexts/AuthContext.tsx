@@ -20,6 +20,8 @@ interface AuthContextType {
   /** Resolved RBAC context from the server, or null until loaded. */
   context: AuthContextData | null;
   isOperator: boolean;
+  /** Boolean Super Admin — the only role that can manage platform operators. */
+  isSuperOperator: boolean;
   /** Highest-privilege role across all of the user's memberships. */
   effectiveRole: EffectiveRole;
   accessibleTenants: AccessibleTenant[];
@@ -31,6 +33,7 @@ const Ctx = createContext<AuthContextType | undefined>(undefined);
 
 function deriveRole(context: AuthContextData | null): EffectiveRole {
   if (!context) return "none";
+  if (context.isSuperOperator) return "super_operator";
   if (context.isPlatformOperator) return "platform_operator";
   if (context.memberships.some((m) => m.role === "admin")) return "admin";
   if (context.memberships.some((m) => m.role === "rep")) return "rep";
@@ -66,6 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         logout,
         context: resolved,
         isOperator: resolved?.isPlatformOperator ?? false,
+        isSuperOperator: resolved?.isSuperOperator ?? false,
         effectiveRole,
         accessibleTenants: resolved?.accessibleTenants ?? [],
         displayName,
