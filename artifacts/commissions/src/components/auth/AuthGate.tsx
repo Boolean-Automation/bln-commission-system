@@ -2,11 +2,15 @@ import React from "react";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Loader2, ShieldCheck } from "lucide-react";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import logoUrl from "@assets/channels4_profile_1780667990826.jpg";
 
 function FullScreen({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex h-screen w-full items-center justify-center bg-background p-6">
+    <div className="relative flex h-screen w-full items-center justify-center bg-background p-6">
+      <div className="absolute right-4 top-4">
+        <ThemeToggle />
+      </div>
       {children}
     </div>
   );
