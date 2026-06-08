@@ -986,6 +986,321 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /tenants/{tenantId}/statements/me/threads:
+    get:
+      operationId: getStatementThreadsForSelf
+      tags: [statements]
+      summary: Threads on the authenticated rep's statement for a period
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+        - name: periodType
+          in: query
+          required: true
+          schema:
+            $ref: "#/components/schemas/PeriodType"
+        - name: periodKey
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Threads with inline messages
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ThreadListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      operationId: openStatementThreadForSelf
+      tags: [statements]
+      summary: Open a new discussion thread on the authenticated rep's statement
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OpenThreadInput"
+      responses:
+        "200":
+          description: The created thread with its first message
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ThreadWithMessages"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /tenants/{tenantId}/statements/{personId}/threads:
+    get:
+      operationId: getStatementThreadsForPerson
+      tags: [statements]
+      summary: Threads on a specific person's statement for a period
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+        - name: personId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: periodType
+          in: query
+          required: true
+          schema:
+            $ref: "#/components/schemas/PeriodType"
+        - name: periodKey
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Threads with inline messages
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ThreadListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      operationId: openStatementThreadForPerson
+      tags: [statements]
+      summary: Open a new discussion thread on a specific person's statement (admin)
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+        - name: personId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OpenThreadInput"
+      responses:
+        "200":
+          description: The created thread with its first message
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ThreadWithMessages"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /tenants/{tenantId}/threads/{threadId}/messages:
+    post:
+      operationId: postThreadMessage
+      tags: [statements]
+      summary: Append a message to a thread
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+        - name: threadId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PostMessageInput"
+      responses:
+        "200":
+          description: The appended message
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ThreadMessage"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /tenants/{tenantId}/threads/{threadId}/resolve:
+    post:
+      operationId: resolveStatementThread
+      tags: [statements]
+      summary: Mark a thread resolved (admin/operator only)
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+        - name: threadId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The updated thread summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ThreadSummary"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /tenants/{tenantId}/threads/{threadId}/reopen:
+    post:
+      operationId: reopenStatementThread
+      tags: [statements]
+      summary: Reopen a resolved thread (admin/operator only)
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+        - name: threadId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The updated thread summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ThreadSummary"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /tenants/{tenantId}/statements/{personId}/signoff/request:
+    post:
+      operationId: requestStatementSignoff
+      tags: [statements]
+      summary: Request a rep to validate a statement (admin/operator)
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+        - name: personId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [periodType, periodKey]
+              properties:
+                periodType:
+                  $ref: "#/components/schemas/PeriodType"
+                periodKey:
+                  type: string
+      responses:
+        "200":
+          description: Updated sign-off state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Signoff"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          description: Sign-off is already acknowledged
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /tenants/{tenantId}/statements/me/signoff/acknowledge:
+    post:
+      operationId: acknowledgeStatementSignoff
+      tags: [statements]
+      summary: Rep acknowledges a statement they were asked to validate
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [periodType, periodKey]
+              properties:
+                periodType:
+                  $ref: "#/components/schemas/PeriodType"
+                periodKey:
+                  type: string
+      responses:
+        "200":
+          description: Updated sign-off state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Signoff"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          description: Sign-off was not in `requested` state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /tenants/{tenantId}/statements/{personId}/signoff/rescind:
+    post:
+      operationId: rescindStatementSignoff
+      tags: [statements]
+      summary: Rescind a still-pending sign-off request (admin/operator)
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+        - name: personId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [periodType, periodKey]
+              properties:
+                periodType:
+                  $ref: "#/components/schemas/PeriodType"
+                periodKey:
+                  type: string
+      responses:
+        "200":
+          description: Updated sign-off state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Signoff"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          description: Sign-off was already acknowledged or never requested
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
   /tenants/{tenantId}/schema-mapping:
     get:
       operationId: getSchemaMapping
@@ -2131,7 +2446,7 @@ components:
 
     Statement:
       type: object
-      required: [personId, personName, period, summary, items]
+      required: [personId, personName, period, summary, items, signoff, threads]
       properties:
         personId:
           type: string
@@ -2155,6 +2470,129 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/StatementItem"
+        signoff:
+          $ref: "#/components/schemas/Signoff"
+        threads:
+          type: array
+          items:
+            $ref: "#/components/schemas/ThreadSummary"
+
+    SignoffState:
+      type: string
+      enum: [none, requested, acknowledged]
+
+    Signoff:
+      type: object
+      required: [state, requestedAt, requestedByName, acknowledgedAt]
+      properties:
+        state:
+          $ref: "#/components/schemas/SignoffState"
+        requestedAt:
+          type: ["string", "null"]
+        requestedByName:
+          type: ["string", "null"]
+        acknowledgedAt:
+          type: ["string", "null"]
+
+    ThreadStatus:
+      type: string
+      enum: [open, resolved]
+
+    ThreadSummary:
+      type: object
+      required:
+        - id
+        - entryId
+        - subject
+        - status
+        - messageCount
+        - lastMessageAt
+        - openedByName
+      properties:
+        id:
+          type: string
+        entryId:
+          type: ["string", "null"]
+        subject:
+          type: ["string", "null"]
+        status:
+          $ref: "#/components/schemas/ThreadStatus"
+        messageCount:
+          type: integer
+        lastMessageAt:
+          type: string
+        openedByName:
+          type: ["string", "null"]
+
+    ThreadMessage:
+      type: object
+      required:
+        - id
+        - threadId
+        - authorUserId
+        - authorName
+        - authorRoleAtPost
+        - body
+        - createdAt
+      properties:
+        id:
+          type: string
+        threadId:
+          type: string
+        authorUserId:
+          type: string
+        authorName:
+          type: ["string", "null"]
+        authorRoleAtPost:
+          type: string
+        body:
+          type: string
+        createdAt:
+          type: string
+
+    ThreadWithMessages:
+      allOf:
+        - $ref: "#/components/schemas/ThreadSummary"
+        - type: object
+          required: [messages]
+          properties:
+            messages:
+              type: array
+              items:
+                $ref: "#/components/schemas/ThreadMessage"
+
+    OpenThreadInput:
+      type: object
+      required: [periodType, periodKey, body]
+      properties:
+        periodType:
+          $ref: "#/components/schemas/PeriodType"
+        periodKey:
+          type: string
+        entryId:
+          type: string
+        subject:
+          type: string
+        body:
+          type: string
+          minLength: 1
+
+    PostMessageInput:
+      type: object
+      required: [body]
+      properties:
+        body:
+          type: string
+          minLength: 1
+
+    ThreadListResponse:
+      type: object
+      required: [threads]
+      properties:
+        threads:
+          type: array
+          items:
+            $ref: "#/components/schemas/ThreadWithMessages"
 
     BreakdownRow:
       type: object

@@ -979,6 +979,21 @@ export const GetStatementForSelfResponse = zod.object({
   "payableAt": zod.string().nullable(),
   "paidAt": zod.string().nullable(),
   "notes": zod.string().nullable()
+})),
+  "signoff": zod.object({
+  "state": zod.enum(['none', 'requested', 'acknowledged']),
+  "requestedAt": zod.string().nullable(),
+  "requestedByName": zod.string().nullable(),
+  "acknowledgedAt": zod.string().nullable()
+}),
+  "threads": zod.array(zod.object({
+  "id": zod.string(),
+  "entryId": zod.string().nullable(),
+  "subject": zod.string().nullable(),
+  "status": zod.enum(['open', 'resolved']),
+  "messageCount": zod.number(),
+  "lastMessageAt": zod.string(),
+  "openedByName": zod.string().nullable()
 }))
 })
 
@@ -1059,7 +1074,298 @@ export const GetStatementForPersonResponse = zod.object({
   "payableAt": zod.string().nullable(),
   "paidAt": zod.string().nullable(),
   "notes": zod.string().nullable()
+})),
+  "signoff": zod.object({
+  "state": zod.enum(['none', 'requested', 'acknowledged']),
+  "requestedAt": zod.string().nullable(),
+  "requestedByName": zod.string().nullable(),
+  "acknowledgedAt": zod.string().nullable()
+}),
+  "threads": zod.array(zod.object({
+  "id": zod.string(),
+  "entryId": zod.string().nullable(),
+  "subject": zod.string().nullable(),
+  "status": zod.enum(['open', 'resolved']),
+  "messageCount": zod.number(),
+  "lastMessageAt": zod.string(),
+  "openedByName": zod.string().nullable()
 }))
+})
+
+
+/**
+ * @summary Threads on the authenticated rep's statement for a period
+ */
+export const GetStatementThreadsForSelfParams = zod.object({
+  "tenantId": zod.coerce.string()
+})
+
+export const GetStatementThreadsForSelfQueryParams = zod.object({
+  "periodType": zod.enum(['monthly', 'quarterly', 'annual']),
+  "periodKey": zod.coerce.string()
+})
+
+export const GetStatementThreadsForSelfResponse = zod.object({
+  "threads": zod.array(zod.object({
+  "id": zod.string(),
+  "entryId": zod.string().nullable(),
+  "subject": zod.string().nullable(),
+  "status": zod.enum(['open', 'resolved']),
+  "messageCount": zod.number(),
+  "lastMessageAt": zod.string(),
+  "openedByName": zod.string().nullable()
+}).and(zod.object({
+  "messages": zod.array(zod.object({
+  "id": zod.string(),
+  "threadId": zod.string(),
+  "authorUserId": zod.string(),
+  "authorName": zod.string().nullable(),
+  "authorRoleAtPost": zod.string(),
+  "body": zod.string(),
+  "createdAt": zod.string()
+}))
+})))
+})
+
+
+/**
+ * @summary Open a new discussion thread on the authenticated rep's statement
+ */
+export const OpenStatementThreadForSelfParams = zod.object({
+  "tenantId": zod.coerce.string()
+})
+
+
+
+
+export const OpenStatementThreadForSelfBody = zod.object({
+  "periodType": zod.enum(['monthly', 'quarterly', 'annual']),
+  "periodKey": zod.string(),
+  "entryId": zod.string().optional(),
+  "subject": zod.string().optional(),
+  "body": zod.string().min(1)
+})
+
+export const OpenStatementThreadForSelfResponse = zod.object({
+  "id": zod.string(),
+  "entryId": zod.string().nullable(),
+  "subject": zod.string().nullable(),
+  "status": zod.enum(['open', 'resolved']),
+  "messageCount": zod.number(),
+  "lastMessageAt": zod.string(),
+  "openedByName": zod.string().nullable()
+}).and(zod.object({
+  "messages": zod.array(zod.object({
+  "id": zod.string(),
+  "threadId": zod.string(),
+  "authorUserId": zod.string(),
+  "authorName": zod.string().nullable(),
+  "authorRoleAtPost": zod.string(),
+  "body": zod.string(),
+  "createdAt": zod.string()
+}))
+}))
+
+
+/**
+ * @summary Threads on a specific person's statement for a period
+ */
+export const GetStatementThreadsForPersonParams = zod.object({
+  "tenantId": zod.coerce.string(),
+  "personId": zod.coerce.string()
+})
+
+export const GetStatementThreadsForPersonQueryParams = zod.object({
+  "periodType": zod.enum(['monthly', 'quarterly', 'annual']),
+  "periodKey": zod.coerce.string()
+})
+
+export const GetStatementThreadsForPersonResponse = zod.object({
+  "threads": zod.array(zod.object({
+  "id": zod.string(),
+  "entryId": zod.string().nullable(),
+  "subject": zod.string().nullable(),
+  "status": zod.enum(['open', 'resolved']),
+  "messageCount": zod.number(),
+  "lastMessageAt": zod.string(),
+  "openedByName": zod.string().nullable()
+}).and(zod.object({
+  "messages": zod.array(zod.object({
+  "id": zod.string(),
+  "threadId": zod.string(),
+  "authorUserId": zod.string(),
+  "authorName": zod.string().nullable(),
+  "authorRoleAtPost": zod.string(),
+  "body": zod.string(),
+  "createdAt": zod.string()
+}))
+})))
+})
+
+
+/**
+ * @summary Open a new discussion thread on a specific person's statement (admin)
+ */
+export const OpenStatementThreadForPersonParams = zod.object({
+  "tenantId": zod.coerce.string(),
+  "personId": zod.coerce.string()
+})
+
+
+
+
+export const OpenStatementThreadForPersonBody = zod.object({
+  "periodType": zod.enum(['monthly', 'quarterly', 'annual']),
+  "periodKey": zod.string(),
+  "entryId": zod.string().optional(),
+  "subject": zod.string().optional(),
+  "body": zod.string().min(1)
+})
+
+export const OpenStatementThreadForPersonResponse = zod.object({
+  "id": zod.string(),
+  "entryId": zod.string().nullable(),
+  "subject": zod.string().nullable(),
+  "status": zod.enum(['open', 'resolved']),
+  "messageCount": zod.number(),
+  "lastMessageAt": zod.string(),
+  "openedByName": zod.string().nullable()
+}).and(zod.object({
+  "messages": zod.array(zod.object({
+  "id": zod.string(),
+  "threadId": zod.string(),
+  "authorUserId": zod.string(),
+  "authorName": zod.string().nullable(),
+  "authorRoleAtPost": zod.string(),
+  "body": zod.string(),
+  "createdAt": zod.string()
+}))
+}))
+
+
+/**
+ * @summary Append a message to a thread
+ */
+export const PostThreadMessageParams = zod.object({
+  "tenantId": zod.coerce.string(),
+  "threadId": zod.coerce.string()
+})
+
+
+
+
+export const PostThreadMessageBody = zod.object({
+  "body": zod.string().min(1)
+})
+
+export const PostThreadMessageResponse = zod.object({
+  "id": zod.string(),
+  "threadId": zod.string(),
+  "authorUserId": zod.string(),
+  "authorName": zod.string().nullable(),
+  "authorRoleAtPost": zod.string(),
+  "body": zod.string(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Mark a thread resolved (admin/operator only)
+ */
+export const ResolveStatementThreadParams = zod.object({
+  "tenantId": zod.coerce.string(),
+  "threadId": zod.coerce.string()
+})
+
+export const ResolveStatementThreadResponse = zod.object({
+  "id": zod.string(),
+  "entryId": zod.string().nullable(),
+  "subject": zod.string().nullable(),
+  "status": zod.enum(['open', 'resolved']),
+  "messageCount": zod.number(),
+  "lastMessageAt": zod.string(),
+  "openedByName": zod.string().nullable()
+})
+
+
+/**
+ * @summary Reopen a resolved thread (admin/operator only)
+ */
+export const ReopenStatementThreadParams = zod.object({
+  "tenantId": zod.coerce.string(),
+  "threadId": zod.coerce.string()
+})
+
+export const ReopenStatementThreadResponse = zod.object({
+  "id": zod.string(),
+  "entryId": zod.string().nullable(),
+  "subject": zod.string().nullable(),
+  "status": zod.enum(['open', 'resolved']),
+  "messageCount": zod.number(),
+  "lastMessageAt": zod.string(),
+  "openedByName": zod.string().nullable()
+})
+
+
+/**
+ * @summary Request a rep to validate a statement (admin/operator)
+ */
+export const RequestStatementSignoffParams = zod.object({
+  "tenantId": zod.coerce.string(),
+  "personId": zod.coerce.string()
+})
+
+export const RequestStatementSignoffBody = zod.object({
+  "periodType": zod.enum(['monthly', 'quarterly', 'annual']),
+  "periodKey": zod.string()
+})
+
+export const RequestStatementSignoffResponse = zod.object({
+  "state": zod.enum(['none', 'requested', 'acknowledged']),
+  "requestedAt": zod.string().nullable(),
+  "requestedByName": zod.string().nullable(),
+  "acknowledgedAt": zod.string().nullable()
+})
+
+
+/**
+ * @summary Rep acknowledges a statement they were asked to validate
+ */
+export const AcknowledgeStatementSignoffParams = zod.object({
+  "tenantId": zod.coerce.string()
+})
+
+export const AcknowledgeStatementSignoffBody = zod.object({
+  "periodType": zod.enum(['monthly', 'quarterly', 'annual']),
+  "periodKey": zod.string()
+})
+
+export const AcknowledgeStatementSignoffResponse = zod.object({
+  "state": zod.enum(['none', 'requested', 'acknowledged']),
+  "requestedAt": zod.string().nullable(),
+  "requestedByName": zod.string().nullable(),
+  "acknowledgedAt": zod.string().nullable()
+})
+
+
+/**
+ * @summary Rescind a still-pending sign-off request (admin/operator)
+ */
+export const RescindStatementSignoffParams = zod.object({
+  "tenantId": zod.coerce.string(),
+  "personId": zod.coerce.string()
+})
+
+export const RescindStatementSignoffBody = zod.object({
+  "periodType": zod.enum(['monthly', 'quarterly', 'annual']),
+  "periodKey": zod.string()
+})
+
+export const RescindStatementSignoffResponse = zod.object({
+  "state": zod.enum(['none', 'requested', 'acknowledged']),
+  "requestedAt": zod.string().nullable(),
+  "requestedByName": zod.string().nullable(),
+  "acknowledgedAt": zod.string().nullable()
 })
 
 

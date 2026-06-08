@@ -1,19 +1,25 @@
-import { and, eq, gte, inArray, isNotNull, lte, sql } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, gte, lte, sql } from "drizzle-orm";
 import {
   db,
   commissionEntriesTable,
   jobsTable,
   peopleTable,
   ruleInstancesTable,
+  statementsTable,
+  statementThreadsTable,
+  usersTable,
   type CommissionEntryRow,
   type Job,
   type RuleInstanceRow,
+  type StatementRow,
 } from "@workspace/db";
 import { derivePeriodRange, type PeriodType } from "./manualInputs";
 import {
   formatSnapshot,
   type FormulaBreakdown,
 } from "./snapshotFormat";
+
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 export type StatementDeal = {
   jobId: string;
@@ -57,6 +63,25 @@ export type StatementSummary = {
   dealCount: number;
 };
 
+export type SignoffState = "none" | "requested" | "acknowledged";
+
+export type StatementSignoff = {
+  state: SignoffState;
+  requestedAt: string | null;
+  requestedByName: string | null;
+  acknowledgedAt: string | null;
+};
+
+export type ThreadSummary = {
+  id: string;
+  entryId: string | null;
+  subject: string | null;
+  status: "open" | "resolved";
+  messageCount: number;
+  lastMessageAt: string;
+  openedByName: string | null;
+};
+
 export type Statement = {
   personId: string;
   personName: string;
@@ -68,6 +93,8 @@ export type Statement = {
   };
   summary: StatementSummary;
   items: StatementItem[];
+  signoff: StatementSignoff;
+  threads: ThreadSummary[];
 };
 
 const round2 = (n: number): number => Math.round(n * 100) / 100;
@@ -239,6 +266,24 @@ export async function assembleStatement(
   const items = entries.map((e) => composeItem(e, jobsById, ruleById));
   const summary = computeSummary(items);
 
+  const [statementRow] = await db
+    .select()
+    .from(statementsTable)
+    .where(
+      and(
+        eq(statementsTable.tenantId, tenantId),
+        eq(statementsTable.personId, personId),
+        eq(statementsTable.periodType, periodType),
+        eq(statementsTable.periodKey, periodKey),
+      ),
+    )
+    .limit(1);
+
+  const signoff = await composeSignoff(statementRow ?? null);
+  const threads = statementRow
+    ? await loadThreadSummaries(statementRow.id)
+    : [];
+
   return {
     personId: person.id,
     personName: person.name,
@@ -250,5 +295,110 @@ export async function assembleStatement(
     },
     summary,
     items,
+    signoff,
+    threads,
   };
+}
+
+/**
+ * Look up a statements row by its (tenant, person, period) coordinate or
+ * create it if missing. Statements are materialized lazily — the first write
+ * path that needs a stable FK target creates the row inside its transaction.
+ *
+ * `onConflictDoUpdate` with a no-op set + `.returning()` is the cheapest way
+ * to get the row back regardless of whether it existed.
+ */
+export async function findOrCreateStatement(
+  tx: Tx,
+  tenantId: string,
+  personId: string,
+  periodType: PeriodType,
+  periodKey: string,
+): Promise<StatementRow> {
+  const [row] = await tx
+    .insert(statementsTable)
+    .values({ tenantId, personId, periodType, periodKey })
+    .onConflictDoUpdate({
+      target: [
+        statementsTable.tenantId,
+        statementsTable.personId,
+        statementsTable.periodType,
+        statementsTable.periodKey,
+      ],
+      set: { tenantId: sql`excluded.tenant_id` },
+    })
+    .returning();
+  return row!;
+}
+
+async function composeSignoff(
+  row: StatementRow | null,
+): Promise<StatementSignoff> {
+  if (!row) {
+    return {
+      state: "none",
+      requestedAt: null,
+      requestedByName: null,
+      acknowledgedAt: null,
+    };
+  }
+  const userIds = [
+    row.signoffRequestedByUserId,
+    row.signoffAcknowledgedByUserId,
+  ].filter((id): id is string => typeof id === "string" && id.length > 0);
+  const nameById = await loadUserNames(userIds);
+  return {
+    state: (row.signoffState as SignoffState) ?? "none",
+    requestedAt: row.signoffRequestedAt
+      ? row.signoffRequestedAt.toISOString()
+      : null,
+    requestedByName: row.signoffRequestedByUserId
+      ? (nameById.get(row.signoffRequestedByUserId) ?? null)
+      : null,
+    acknowledgedAt: row.signoffAcknowledgedAt
+      ? row.signoffAcknowledgedAt.toISOString()
+      : null,
+  };
+}
+
+async function loadThreadSummaries(
+  statementId: string,
+): Promise<ThreadSummary[]> {
+  const rows = await db
+    .select()
+    .from(statementThreadsTable)
+    .where(eq(statementThreadsTable.statementId, statementId))
+    .orderBy(sql`${statementThreadsTable.lastMessageAt} DESC`);
+  const openedByIds = uniq(rows.map((r) => r.openedByUserId));
+  const nameById = await loadUserNames(openedByIds);
+  return rows.map((r) => ({
+    id: r.id,
+    entryId: r.entryId ?? null,
+    subject: r.subject ?? null,
+    status: (r.status as "open" | "resolved") ?? "open",
+    messageCount: r.messageCount,
+    lastMessageAt: r.lastMessageAt.toISOString(),
+    openedByName: nameById.get(r.openedByUserId) ?? null,
+  }));
+}
+
+export async function loadUserNames(
+  userIds: string[],
+): Promise<Map<string, string>> {
+  if (userIds.length === 0) return new Map();
+  const rows = await db
+    .select({
+      id: usersTable.id,
+      email: usersTable.email,
+      firstName: usersTable.firstName,
+      lastName: usersTable.lastName,
+    })
+    .from(usersTable)
+    .where(inArray(usersTable.id, uniq(userIds)));
+  const result = new Map<string, string>();
+  for (const r of rows) {
+    const name = [r.firstName, r.lastName].filter(Boolean).join(" ").trim();
+    result.set(r.id, name.length > 0 ? name : (r.email ?? r.id));
+  }
+  return result;
 }

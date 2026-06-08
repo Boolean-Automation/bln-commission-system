@@ -5,9 +5,11 @@
  * Multi-tenant commission system API
  * OpenAPI spec version: 0.1.0
  */
+import type { Signoff } from './signoff';
 import type { StatementItem } from './statementItem';
 import type { StatementPeriod } from './statementPeriod';
 import type { StatementSummary } from './statementSummary';
+import type { ThreadSummary } from './threadSummary';
 
 export interface Statement {
   personId: string;
@@ -15,4 +17,6 @@ export interface Statement {
   period: StatementPeriod;
   summary: StatementSummary;
   items: StatementItem[];
+  signoff: Signoff;
+  threads: ThreadSummary[];
 }

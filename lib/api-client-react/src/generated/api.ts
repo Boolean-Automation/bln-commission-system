@@ -20,6 +20,7 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  AcknowledgeStatementSignoffBody,
   ActivityItem,
   AirtableBase,
   AirtableTable,
@@ -42,6 +43,7 @@ import type {
   DeleteMembershipResult,
   DeletePositionResult,
   DeleteTenantResult,
+  Error,
   ErrorEnvelope,
   ForbiddenResponse,
   GetActivityParams,
@@ -52,6 +54,8 @@ import type {
   GetSpendParams,
   GetStatementForPersonParams,
   GetStatementForSelfParams,
+  GetStatementThreadsForPersonParams,
+  GetStatementThreadsForSelfParams,
   HandleBrowserLoginCallbackParams,
   HealthStatus,
   Job,
@@ -70,17 +74,21 @@ import type {
   MobileTokenExchangeRequest,
   MobileTokenExchangeSuccess,
   NotFoundResponse,
+  OpenThreadInput,
   OperatorInput,
   PayrollLine,
   Person,
   Position,
   PositionInput,
+  PostMessageInput,
   RecomputeResult,
   ReconciliationReport,
   ReorderRuleInstances,
   RepDashboardKpiConfig,
   RepDashboardKpiConfigInput,
   RepDashboardSummary,
+  RequestStatementSignoffBody,
+  RescindStatementSignoffBody,
   RuleInstance,
   RuleInstanceCreate,
   RuleInstanceUpdate,
@@ -88,10 +96,15 @@ import type {
   SchemaMapping,
   SchemaMappingInput,
   SetAirtableBaseInput,
+  Signoff,
   SpendPoint,
   Statement,
   SyncResult,
   Tenant,
+  ThreadListResponse,
+  ThreadMessage,
+  ThreadSummary,
+  ThreadWithMessages,
   UpdateTenant
 } from './api.schemas';
 
@@ -3328,6 +3341,773 @@ export function useGetStatementForPerson<TData = Awaited<ReturnType<typeof getSt
 
 
 
+
+export const getGetStatementThreadsForSelfUrl = (tenantId: string,
+    params: GetStatementThreadsForSelfParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/tenants/${tenantId}/statements/me/threads?${stringifiedParams}` : `/api/tenants/${tenantId}/statements/me/threads`
+}
+
+/**
+ * @summary Threads on the authenticated rep's statement for a period
+ */
+export const getStatementThreadsForSelf = async (tenantId: string,
+    params: GetStatementThreadsForSelfParams, options?: RequestInit): Promise<ThreadListResponse> => {
+
+  return customFetch<ThreadListResponse>(getGetStatementThreadsForSelfUrl(tenantId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetStatementThreadsForSelfQueryKey = (tenantId: string,
+    params?: GetStatementThreadsForSelfParams,) => {
+    return [
+    `/api/tenants/${tenantId}/statements/me/threads`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetStatementThreadsForSelfQueryOptions = <TData = Awaited<ReturnType<typeof getStatementThreadsForSelf>>, TError = ErrorType<BadRequestResponse | ForbiddenResponse>>(tenantId: string,
+    params: GetStatementThreadsForSelfParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStatementThreadsForSelf>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetStatementThreadsForSelfQueryKey(tenantId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getStatementThreadsForSelf>>> = ({ signal }) => getStatementThreadsForSelf(tenantId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(tenantId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getStatementThreadsForSelf>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetStatementThreadsForSelfQueryResult = NonNullable<Awaited<ReturnType<typeof getStatementThreadsForSelf>>>
+export type GetStatementThreadsForSelfQueryError = ErrorType<BadRequestResponse | ForbiddenResponse>
+
+
+/**
+ * @summary Threads on the authenticated rep's statement for a period
+ */
+
+export function useGetStatementThreadsForSelf<TData = Awaited<ReturnType<typeof getStatementThreadsForSelf>>, TError = ErrorType<BadRequestResponse | ForbiddenResponse>>(
+ tenantId: string,
+    params: GetStatementThreadsForSelfParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStatementThreadsForSelf>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetStatementThreadsForSelfQueryOptions(tenantId,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getOpenStatementThreadForSelfUrl = (tenantId: string,) => {
+
+
+
+
+  return `/api/tenants/${tenantId}/statements/me/threads`
+}
+
+/**
+ * @summary Open a new discussion thread on the authenticated rep's statement
+ */
+export const openStatementThreadForSelf = async (tenantId: string,
+    openThreadInput: OpenThreadInput, options?: RequestInit): Promise<ThreadWithMessages> => {
+
+  return customFetch<ThreadWithMessages>(getOpenStatementThreadForSelfUrl(tenantId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      openThreadInput,)
+  }
+);}
+
+
+
+
+export const getOpenStatementThreadForSelfMutationOptions = <TError = ErrorType<BadRequestResponse | ForbiddenResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof openStatementThreadForSelf>>, TError,{tenantId: string;data: BodyType<OpenThreadInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof openStatementThreadForSelf>>, TError,{tenantId: string;data: BodyType<OpenThreadInput>}, TContext> => {
+
+const mutationKey = ['openStatementThreadForSelf'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof openStatementThreadForSelf>>, {tenantId: string;data: BodyType<OpenThreadInput>}> = (props) => {
+          const {tenantId,data} = props ?? {};
+
+          return  openStatementThreadForSelf(tenantId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type OpenStatementThreadForSelfMutationResult = NonNullable<Awaited<ReturnType<typeof openStatementThreadForSelf>>>
+    export type OpenStatementThreadForSelfMutationBody = BodyType<OpenThreadInput>
+    export type OpenStatementThreadForSelfMutationError = ErrorType<BadRequestResponse | ForbiddenResponse>
+
+    /**
+ * @summary Open a new discussion thread on the authenticated rep's statement
+ */
+export const useOpenStatementThreadForSelf = <TError = ErrorType<BadRequestResponse | ForbiddenResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof openStatementThreadForSelf>>, TError,{tenantId: string;data: BodyType<OpenThreadInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof openStatementThreadForSelf>>,
+        TError,
+        {tenantId: string;data: BodyType<OpenThreadInput>},
+        TContext
+      > => {
+      return useMutation(getOpenStatementThreadForSelfMutationOptions(options));
+    }
+
+export const getGetStatementThreadsForPersonUrl = (tenantId: string,
+    personId: string,
+    params: GetStatementThreadsForPersonParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/tenants/${tenantId}/statements/${personId}/threads?${stringifiedParams}` : `/api/tenants/${tenantId}/statements/${personId}/threads`
+}
+
+/**
+ * @summary Threads on a specific person's statement for a period
+ */
+export const getStatementThreadsForPerson = async (tenantId: string,
+    personId: string,
+    params: GetStatementThreadsForPersonParams, options?: RequestInit): Promise<ThreadListResponse> => {
+
+  return customFetch<ThreadListResponse>(getGetStatementThreadsForPersonUrl(tenantId,personId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetStatementThreadsForPersonQueryKey = (tenantId: string,
+    personId: string,
+    params?: GetStatementThreadsForPersonParams,) => {
+    return [
+    `/api/tenants/${tenantId}/statements/${personId}/threads`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetStatementThreadsForPersonQueryOptions = <TData = Awaited<ReturnType<typeof getStatementThreadsForPerson>>, TError = ErrorType<BadRequestResponse | ForbiddenResponse>>(tenantId: string,
+    personId: string,
+    params: GetStatementThreadsForPersonParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStatementThreadsForPerson>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetStatementThreadsForPersonQueryKey(tenantId,personId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getStatementThreadsForPerson>>> = ({ signal }) => getStatementThreadsForPerson(tenantId,personId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(tenantId && personId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getStatementThreadsForPerson>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetStatementThreadsForPersonQueryResult = NonNullable<Awaited<ReturnType<typeof getStatementThreadsForPerson>>>
+export type GetStatementThreadsForPersonQueryError = ErrorType<BadRequestResponse | ForbiddenResponse>
+
+
+/**
+ * @summary Threads on a specific person's statement for a period
+ */
+
+export function useGetStatementThreadsForPerson<TData = Awaited<ReturnType<typeof getStatementThreadsForPerson>>, TError = ErrorType<BadRequestResponse | ForbiddenResponse>>(
+ tenantId: string,
+    personId: string,
+    params: GetStatementThreadsForPersonParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStatementThreadsForPerson>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetStatementThreadsForPersonQueryOptions(tenantId,personId,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getOpenStatementThreadForPersonUrl = (tenantId: string,
+    personId: string,) => {
+
+
+
+
+  return `/api/tenants/${tenantId}/statements/${personId}/threads`
+}
+
+/**
+ * @summary Open a new discussion thread on a specific person's statement (admin)
+ */
+export const openStatementThreadForPerson = async (tenantId: string,
+    personId: string,
+    openThreadInput: OpenThreadInput, options?: RequestInit): Promise<ThreadWithMessages> => {
+
+  return customFetch<ThreadWithMessages>(getOpenStatementThreadForPersonUrl(tenantId,personId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      openThreadInput,)
+  }
+);}
+
+
+
+
+export const getOpenStatementThreadForPersonMutationOptions = <TError = ErrorType<BadRequestResponse | ForbiddenResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof openStatementThreadForPerson>>, TError,{tenantId: string;personId: string;data: BodyType<OpenThreadInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof openStatementThreadForPerson>>, TError,{tenantId: string;personId: string;data: BodyType<OpenThreadInput>}, TContext> => {
+
+const mutationKey = ['openStatementThreadForPerson'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof openStatementThreadForPerson>>, {tenantId: string;personId: string;data: BodyType<OpenThreadInput>}> = (props) => {
+          const {tenantId,personId,data} = props ?? {};
+
+          return  openStatementThreadForPerson(tenantId,personId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type OpenStatementThreadForPersonMutationResult = NonNullable<Awaited<ReturnType<typeof openStatementThreadForPerson>>>
+    export type OpenStatementThreadForPersonMutationBody = BodyType<OpenThreadInput>
+    export type OpenStatementThreadForPersonMutationError = ErrorType<BadRequestResponse | ForbiddenResponse>
+
+    /**
+ * @summary Open a new discussion thread on a specific person's statement (admin)
+ */
+export const useOpenStatementThreadForPerson = <TError = ErrorType<BadRequestResponse | ForbiddenResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof openStatementThreadForPerson>>, TError,{tenantId: string;personId: string;data: BodyType<OpenThreadInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof openStatementThreadForPerson>>,
+        TError,
+        {tenantId: string;personId: string;data: BodyType<OpenThreadInput>},
+        TContext
+      > => {
+      return useMutation(getOpenStatementThreadForPersonMutationOptions(options));
+    }
+
+export const getPostThreadMessageUrl = (tenantId: string,
+    threadId: string,) => {
+
+
+
+
+  return `/api/tenants/${tenantId}/threads/${threadId}/messages`
+}
+
+/**
+ * @summary Append a message to a thread
+ */
+export const postThreadMessage = async (tenantId: string,
+    threadId: string,
+    postMessageInput: PostMessageInput, options?: RequestInit): Promise<ThreadMessage> => {
+
+  return customFetch<ThreadMessage>(getPostThreadMessageUrl(tenantId,threadId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      postMessageInput,)
+  }
+);}
+
+
+
+
+export const getPostThreadMessageMutationOptions = <TError = ErrorType<BadRequestResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postThreadMessage>>, TError,{tenantId: string;threadId: string;data: BodyType<PostMessageInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof postThreadMessage>>, TError,{tenantId: string;threadId: string;data: BodyType<PostMessageInput>}, TContext> => {
+
+const mutationKey = ['postThreadMessage'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof postThreadMessage>>, {tenantId: string;threadId: string;data: BodyType<PostMessageInput>}> = (props) => {
+          const {tenantId,threadId,data} = props ?? {};
+
+          return  postThreadMessage(tenantId,threadId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PostThreadMessageMutationResult = NonNullable<Awaited<ReturnType<typeof postThreadMessage>>>
+    export type PostThreadMessageMutationBody = BodyType<PostMessageInput>
+    export type PostThreadMessageMutationError = ErrorType<BadRequestResponse | ForbiddenResponse | NotFoundResponse>
+
+    /**
+ * @summary Append a message to a thread
+ */
+export const usePostThreadMessage = <TError = ErrorType<BadRequestResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postThreadMessage>>, TError,{tenantId: string;threadId: string;data: BodyType<PostMessageInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof postThreadMessage>>,
+        TError,
+        {tenantId: string;threadId: string;data: BodyType<PostMessageInput>},
+        TContext
+      > => {
+      return useMutation(getPostThreadMessageMutationOptions(options));
+    }
+
+export const getResolveStatementThreadUrl = (tenantId: string,
+    threadId: string,) => {
+
+
+
+
+  return `/api/tenants/${tenantId}/threads/${threadId}/resolve`
+}
+
+/**
+ * @summary Mark a thread resolved (admin/operator only)
+ */
+export const resolveStatementThread = async (tenantId: string,
+    threadId: string, options?: RequestInit): Promise<ThreadSummary> => {
+
+  return customFetch<ThreadSummary>(getResolveStatementThreadUrl(tenantId,threadId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getResolveStatementThreadMutationOptions = <TError = ErrorType<ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resolveStatementThread>>, TError,{tenantId: string;threadId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof resolveStatementThread>>, TError,{tenantId: string;threadId: string}, TContext> => {
+
+const mutationKey = ['resolveStatementThread'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resolveStatementThread>>, {tenantId: string;threadId: string}> = (props) => {
+          const {tenantId,threadId} = props ?? {};
+
+          return  resolveStatementThread(tenantId,threadId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ResolveStatementThreadMutationResult = NonNullable<Awaited<ReturnType<typeof resolveStatementThread>>>
+
+    export type ResolveStatementThreadMutationError = ErrorType<ForbiddenResponse | NotFoundResponse>
+
+    /**
+ * @summary Mark a thread resolved (admin/operator only)
+ */
+export const useResolveStatementThread = <TError = ErrorType<ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resolveStatementThread>>, TError,{tenantId: string;threadId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof resolveStatementThread>>,
+        TError,
+        {tenantId: string;threadId: string},
+        TContext
+      > => {
+      return useMutation(getResolveStatementThreadMutationOptions(options));
+    }
+
+export const getReopenStatementThreadUrl = (tenantId: string,
+    threadId: string,) => {
+
+
+
+
+  return `/api/tenants/${tenantId}/threads/${threadId}/reopen`
+}
+
+/**
+ * @summary Reopen a resolved thread (admin/operator only)
+ */
+export const reopenStatementThread = async (tenantId: string,
+    threadId: string, options?: RequestInit): Promise<ThreadSummary> => {
+
+  return customFetch<ThreadSummary>(getReopenStatementThreadUrl(tenantId,threadId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getReopenStatementThreadMutationOptions = <TError = ErrorType<ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reopenStatementThread>>, TError,{tenantId: string;threadId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reopenStatementThread>>, TError,{tenantId: string;threadId: string}, TContext> => {
+
+const mutationKey = ['reopenStatementThread'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reopenStatementThread>>, {tenantId: string;threadId: string}> = (props) => {
+          const {tenantId,threadId} = props ?? {};
+
+          return  reopenStatementThread(tenantId,threadId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReopenStatementThreadMutationResult = NonNullable<Awaited<ReturnType<typeof reopenStatementThread>>>
+
+    export type ReopenStatementThreadMutationError = ErrorType<ForbiddenResponse | NotFoundResponse>
+
+    /**
+ * @summary Reopen a resolved thread (admin/operator only)
+ */
+export const useReopenStatementThread = <TError = ErrorType<ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reopenStatementThread>>, TError,{tenantId: string;threadId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reopenStatementThread>>,
+        TError,
+        {tenantId: string;threadId: string},
+        TContext
+      > => {
+      return useMutation(getReopenStatementThreadMutationOptions(options));
+    }
+
+export const getRequestStatementSignoffUrl = (tenantId: string,
+    personId: string,) => {
+
+
+
+
+  return `/api/tenants/${tenantId}/statements/${personId}/signoff/request`
+}
+
+/**
+ * @summary Request a rep to validate a statement (admin/operator)
+ */
+export const requestStatementSignoff = async (tenantId: string,
+    personId: string,
+    requestStatementSignoffBody: RequestStatementSignoffBody, options?: RequestInit): Promise<Signoff> => {
+
+  return customFetch<Signoff>(getRequestStatementSignoffUrl(tenantId,personId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      requestStatementSignoffBody,)
+  }
+);}
+
+
+
+
+export const getRequestStatementSignoffMutationOptions = <TError = ErrorType<BadRequestResponse | ForbiddenResponse | Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestStatementSignoff>>, TError,{tenantId: string;personId: string;data: BodyType<RequestStatementSignoffBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof requestStatementSignoff>>, TError,{tenantId: string;personId: string;data: BodyType<RequestStatementSignoffBody>}, TContext> => {
+
+const mutationKey = ['requestStatementSignoff'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof requestStatementSignoff>>, {tenantId: string;personId: string;data: BodyType<RequestStatementSignoffBody>}> = (props) => {
+          const {tenantId,personId,data} = props ?? {};
+
+          return  requestStatementSignoff(tenantId,personId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RequestStatementSignoffMutationResult = NonNullable<Awaited<ReturnType<typeof requestStatementSignoff>>>
+    export type RequestStatementSignoffMutationBody = BodyType<RequestStatementSignoffBody>
+    export type RequestStatementSignoffMutationError = ErrorType<BadRequestResponse | ForbiddenResponse | Error>
+
+    /**
+ * @summary Request a rep to validate a statement (admin/operator)
+ */
+export const useRequestStatementSignoff = <TError = ErrorType<BadRequestResponse | ForbiddenResponse | Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestStatementSignoff>>, TError,{tenantId: string;personId: string;data: BodyType<RequestStatementSignoffBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof requestStatementSignoff>>,
+        TError,
+        {tenantId: string;personId: string;data: BodyType<RequestStatementSignoffBody>},
+        TContext
+      > => {
+      return useMutation(getRequestStatementSignoffMutationOptions(options));
+    }
+
+export const getAcknowledgeStatementSignoffUrl = (tenantId: string,) => {
+
+
+
+
+  return `/api/tenants/${tenantId}/statements/me/signoff/acknowledge`
+}
+
+/**
+ * @summary Rep acknowledges a statement they were asked to validate
+ */
+export const acknowledgeStatementSignoff = async (tenantId: string,
+    acknowledgeStatementSignoffBody: AcknowledgeStatementSignoffBody, options?: RequestInit): Promise<Signoff> => {
+
+  return customFetch<Signoff>(getAcknowledgeStatementSignoffUrl(tenantId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      acknowledgeStatementSignoffBody,)
+  }
+);}
+
+
+
+
+export const getAcknowledgeStatementSignoffMutationOptions = <TError = ErrorType<BadRequestResponse | ForbiddenResponse | Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof acknowledgeStatementSignoff>>, TError,{tenantId: string;data: BodyType<AcknowledgeStatementSignoffBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof acknowledgeStatementSignoff>>, TError,{tenantId: string;data: BodyType<AcknowledgeStatementSignoffBody>}, TContext> => {
+
+const mutationKey = ['acknowledgeStatementSignoff'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof acknowledgeStatementSignoff>>, {tenantId: string;data: BodyType<AcknowledgeStatementSignoffBody>}> = (props) => {
+          const {tenantId,data} = props ?? {};
+
+          return  acknowledgeStatementSignoff(tenantId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AcknowledgeStatementSignoffMutationResult = NonNullable<Awaited<ReturnType<typeof acknowledgeStatementSignoff>>>
+    export type AcknowledgeStatementSignoffMutationBody = BodyType<AcknowledgeStatementSignoffBody>
+    export type AcknowledgeStatementSignoffMutationError = ErrorType<BadRequestResponse | ForbiddenResponse | Error>
+
+    /**
+ * @summary Rep acknowledges a statement they were asked to validate
+ */
+export const useAcknowledgeStatementSignoff = <TError = ErrorType<BadRequestResponse | ForbiddenResponse | Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof acknowledgeStatementSignoff>>, TError,{tenantId: string;data: BodyType<AcknowledgeStatementSignoffBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof acknowledgeStatementSignoff>>,
+        TError,
+        {tenantId: string;data: BodyType<AcknowledgeStatementSignoffBody>},
+        TContext
+      > => {
+      return useMutation(getAcknowledgeStatementSignoffMutationOptions(options));
+    }
+
+export const getRescindStatementSignoffUrl = (tenantId: string,
+    personId: string,) => {
+
+
+
+
+  return `/api/tenants/${tenantId}/statements/${personId}/signoff/rescind`
+}
+
+/**
+ * @summary Rescind a still-pending sign-off request (admin/operator)
+ */
+export const rescindStatementSignoff = async (tenantId: string,
+    personId: string,
+    rescindStatementSignoffBody: RescindStatementSignoffBody, options?: RequestInit): Promise<Signoff> => {
+
+  return customFetch<Signoff>(getRescindStatementSignoffUrl(tenantId,personId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      rescindStatementSignoffBody,)
+  }
+);}
+
+
+
+
+export const getRescindStatementSignoffMutationOptions = <TError = ErrorType<BadRequestResponse | ForbiddenResponse | Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof rescindStatementSignoff>>, TError,{tenantId: string;personId: string;data: BodyType<RescindStatementSignoffBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof rescindStatementSignoff>>, TError,{tenantId: string;personId: string;data: BodyType<RescindStatementSignoffBody>}, TContext> => {
+
+const mutationKey = ['rescindStatementSignoff'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof rescindStatementSignoff>>, {tenantId: string;personId: string;data: BodyType<RescindStatementSignoffBody>}> = (props) => {
+          const {tenantId,personId,data} = props ?? {};
+
+          return  rescindStatementSignoff(tenantId,personId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RescindStatementSignoffMutationResult = NonNullable<Awaited<ReturnType<typeof rescindStatementSignoff>>>
+    export type RescindStatementSignoffMutationBody = BodyType<RescindStatementSignoffBody>
+    export type RescindStatementSignoffMutationError = ErrorType<BadRequestResponse | ForbiddenResponse | Error>
+
+    /**
+ * @summary Rescind a still-pending sign-off request (admin/operator)
+ */
+export const useRescindStatementSignoff = <TError = ErrorType<BadRequestResponse | ForbiddenResponse | Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof rescindStatementSignoff>>, TError,{tenantId: string;personId: string;data: BodyType<RescindStatementSignoffBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof rescindStatementSignoff>>,
+        TError,
+        {tenantId: string;personId: string;data: BodyType<RescindStatementSignoffBody>},
+        TContext
+      > => {
+      return useMutation(getRescindStatementSignoffMutationOptions(options));
+    }
 
 export const getGetSchemaMappingUrl = (tenantId: string,) => {
 

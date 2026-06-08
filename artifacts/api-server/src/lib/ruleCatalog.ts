@@ -96,6 +96,26 @@ export const RULE_MODULES: RuleModuleDef[] = [
     },
   },
   {
+    key: "job_status_filter",
+    name: "Job Status Filter",
+    category: "Eligibility",
+    description:
+      "Only produces commissions for jobs whose status is on the allow-list. Mirrors data-source workflows that create commission rows only after a job reaches a milestone (e.g. Airtable's Job Status flip to Open/Closed).",
+    summary: "Skips jobs whose status is not on the allow-list",
+    builder: "fields",
+    fields: [
+      {
+        key: "allowedStatuses",
+        label: "Allowed job statuses",
+        type: "stringlist",
+        help: "Case-insensitive. Jobs in any other status produce no commissions.",
+      },
+    ],
+    defaultParams: {
+      allowedStatuses: ["Open", "Closed"],
+    },
+  },
+  {
     key: "gp_gatekeeper",
     name: "GP Gatekeeper",
     category: "Eligibility",
@@ -172,6 +192,12 @@ export const RULE_MODULES: RuleModuleDef[] = [
       excludeSoldBy: [],
     },
   },
+  // pm_gp_rate is instanced twice on most tenants — once with type=PM (paid
+  // to the project's Lead Manager) and once with type=PMM (paid to a
+  // different person, e.g. the Coordinator on Paragon). recipientSource lets
+  // each instance pick the canonical project field that holds its recipient.
+  // When undefined, the engine preserves legacy behavior (PMM→manager,
+  // PM→leadManager fallback manager).
   {
     key: "pm_gp_rate",
     name: "Project Manager GP Rate",
@@ -189,6 +215,17 @@ export const RULE_MODULES: RuleModuleDef[] = [
         options: [
           { value: "PM", label: "Project Manager (PM)" },
           { value: "PMM", label: "Production Manager (PMM)" },
+        ],
+      },
+      {
+        key: "recipientSource",
+        label: "Recipient field",
+        type: "select",
+        help: "Which canonical project field holds this rule's recipient. Leave on default unless your data-source layout puts PMM elsewhere.",
+        options: [
+          { value: "", label: "Default (PM → leadManager, PMM → manager)" },
+          { value: "manager", label: "Project manager" },
+          { value: "leadManager", label: "Project lead manager" },
         ],
       },
     ],

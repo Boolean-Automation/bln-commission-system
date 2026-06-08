@@ -486,12 +486,87 @@ export type StatementPeriod = {
   endDate: string;
 };
 
+export type SignoffState = typeof SignoffState[keyof typeof SignoffState];
+
+
+export const SignoffState = {
+  none: 'none',
+  requested: 'requested',
+  acknowledged: 'acknowledged',
+} as const;
+
+export interface Signoff {
+  state: SignoffState;
+  /** @nullable */
+  requestedAt: string | null;
+  /** @nullable */
+  requestedByName: string | null;
+  /** @nullable */
+  acknowledgedAt: string | null;
+}
+
+export type ThreadStatus = typeof ThreadStatus[keyof typeof ThreadStatus];
+
+
+export const ThreadStatus = {
+  open: 'open',
+  resolved: 'resolved',
+} as const;
+
+export interface ThreadSummary {
+  id: string;
+  /** @nullable */
+  entryId: string | null;
+  /** @nullable */
+  subject: string | null;
+  status: ThreadStatus;
+  messageCount: number;
+  lastMessageAt: string;
+  /** @nullable */
+  openedByName: string | null;
+}
+
 export interface Statement {
   personId: string;
   personName: string;
   period: StatementPeriod;
   summary: StatementSummary;
   items: StatementItem[];
+  signoff: Signoff;
+  threads: ThreadSummary[];
+}
+
+export interface ThreadMessage {
+  id: string;
+  threadId: string;
+  authorUserId: string;
+  /** @nullable */
+  authorName: string | null;
+  authorRoleAtPost: string;
+  body: string;
+  createdAt: string;
+}
+
+export type ThreadWithMessages = ThreadSummary & {
+  messages: ThreadMessage[];
+};
+
+export interface OpenThreadInput {
+  periodType: PeriodType;
+  periodKey: string;
+  entryId?: string;
+  subject?: string;
+  /** @minLength 1 */
+  body: string;
+}
+
+export interface PostMessageInput {
+  /** @minLength 1 */
+  body: string;
+}
+
+export interface ThreadListResponse {
+  threads: ThreadWithMessages[];
 }
 
 export interface BreakdownRow {
@@ -1202,6 +1277,31 @@ personId?: string;
 export type GetStatementForPersonParams = {
 periodType: PeriodType;
 periodKey: string;
+};
+
+export type GetStatementThreadsForSelfParams = {
+periodType: PeriodType;
+periodKey: string;
+};
+
+export type GetStatementThreadsForPersonParams = {
+periodType: PeriodType;
+periodKey: string;
+};
+
+export type RequestStatementSignoffBody = {
+  periodType: PeriodType;
+  periodKey: string;
+};
+
+export type AcknowledgeStatementSignoffBody = {
+  periodType: PeriodType;
+  periodKey: string;
+};
+
+export type RescindStatementSignoffBody = {
+  periodType: PeriodType;
+  periodKey: string;
 };
 
 export type ListCommissionsParams = {

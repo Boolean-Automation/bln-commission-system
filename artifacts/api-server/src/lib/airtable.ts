@@ -8,7 +8,13 @@ function client(): ReplitConnectors {
 }
 
 async function airtableGet(path: string): Promise<unknown> {
-  const resp = await client().proxy("airtable", path, { method: "GET" });
+  const pat = process.env.AIRTABLE_PAT;
+  const resp = pat
+    ? await fetch(`https://api.airtable.com${path}`, {
+        method: "GET",
+        headers: { Authorization: `Bearer ${pat}` },
+      })
+    : await client().proxy("airtable", path, { method: "GET" });
   if (!resp.ok) {
     const text = await resp.text();
     throw new Error(`Airtable API ${resp.status}: ${text}`);

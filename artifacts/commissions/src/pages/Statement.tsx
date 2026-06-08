@@ -6,23 +6,19 @@ import {
   getGetStatementForPersonQueryKey,
   type PeriodType,
   type Statement as StatementData,
-  type StatementItem,
 } from "@workspace/api-client-react";
 import { PeriodPicker } from "@/components/reports/PeriodPicker";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ChevronDown, ChevronRight, Wallet } from "lucide-react";
+import { MessageSquarePlus, Wallet } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 import { currentPeriodKey, formatPeriodKey } from "@/lib/periods";
-import { FormulaBreakdown } from "@/components/statement/FormulaBreakdown";
-import { DealPanel } from "@/components/statement/DealPanel";
+import { useAuthContext } from "@/contexts/AuthContext";
+import { SignoffPanel } from "@/components/statement/SignoffPanel";
+import { ThreadList } from "@/components/statement/ThreadList";
+import { NewThreadDialog } from "@/components/statement/NewThreadDialog";
+import { StatementItemCard } from "@/components/statement/StatementItemCard";
 
 type Mode = "self" | "admin";
 
@@ -31,74 +27,6 @@ type Props = {
   mode: Mode;
   personId?: string;
 };
-
-const STATE_VARIANT: Record<
-  StatementItem["state"],
-  "default" | "secondary" | "outline" | "destructive"
-> = {
-  accrued: "secondary",
-  payable: "default",
-  paid: "default",
-  clawed_back: "destructive",
-  voided: "outline",
-  disputed: "outline",
-};
-
-function StatementItemCard({ item }: { item: StatementItem }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <Card>
-      <CardContent className="space-y-3 p-4">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <Badge variant="outline" className="font-mono">
-                {item.type}
-              </Badge>
-              {item.ruleDescription && (
-                <span className="text-sm font-medium text-muted-foreground">
-                  {item.ruleDescription}
-                </span>
-              )}
-            </div>
-            {item.source.label && (
-              <div className="text-xs text-muted-foreground">
-                {item.source.label}
-              </div>
-            )}
-          </div>
-          <div className="text-right">
-            <div className="text-lg font-bold">{formatCurrency(item.amount)}</div>
-            <Badge variant={STATE_VARIANT[item.state]} className="mt-1">
-              {item.state}
-            </Badge>
-          </div>
-        </div>
-
-        <Collapsible open={open} onOpenChange={setOpen}>
-          <CollapsibleTrigger asChild>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8 w-full justify-start gap-2 px-2 text-xs text-muted-foreground"
-            >
-              {open ? (
-                <ChevronDown className="size-3" />
-              ) : (
-                <ChevronRight className="size-3" />
-              )}
-              {open ? "Hide" : "Show"} calculation
-            </Button>
-          </CollapsibleTrigger>
-          <CollapsibleContent className="space-y-3 pt-2">
-            <FormulaBreakdown formula={item.formula} />
-            {item.deal && <DealPanel deal={item.deal} />}
-          </CollapsibleContent>
-        </Collapsible>
-      </CardContent>
-    </Card>
-  );
-}
 
 function SummaryCard({ statement }: { statement: StatementData }) {
   const { summary, period } = statement;
@@ -176,10 +104,17 @@ function SummaryCard({ statement }: { statement: StatementData }) {
 }
 
 export function Statement({ tenantId, mode, personId }: Props) {
+  const { effectiveRole } = useAuthContext();
   const [periodType, setPeriodType] = useState<PeriodType>("monthly");
   const [periodKey, setPeriodKey] = useState<string>(() =>
     currentPeriodKey("monthly"),
   );
+
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [dialogEntryId, setDialogEntryId] = useState<string | undefined>();
+  const [dialogDefaultSubject, setDialogDefaultSubject] = useState<
+    string | undefined
+  >();
 
   const selfQuery = useGetStatementForSelf(
     tenantId,
@@ -214,13 +149,32 @@ export function Statement({ tenantId, mode, personId }: Props) {
     mode === "self" ? selfQuery : personQuery;
 
   const items = useMemo(() => statement?.items ?? [], [statement]);
+  const threads = useMemo(() => statement?.threads ?? [], [statement]);
+  const effectivePersonId = statement?.personId ?? personId ?? "";
+
+  const openNewThread = (entryId?: string) => {
+    setDialogEntryId(entryId);
+    if (entryId) {
+      const item = items.find((i) => i.entryId === entryId);
+      setDialogDefaultSubject(
+        item?.source.label
+          ? `Question on ${item.source.label}`
+          : "Question on this item",
+      );
+    } else {
+      setDialogDefaultSubject(undefined);
+    }
+    setDialogOpen(true);
+  };
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-xl font-bold tracking-tight">
-            {statement?.personName ? `${statement.personName}'s Statement` : "Statement"}
+            {statement?.personName
+              ? `${statement.personName}'s Statement`
+              : "Statement"}
           </h2>
           <p className="text-sm text-muted-foreground">
             Per-period breakdown of every commission item.
@@ -249,31 +203,92 @@ export function Statement({ tenantId, mode, personId }: Props) {
             Failed to load your statement.
           </CardContent>
         </Card>
-      ) : items.length === 0 ? (
-        <>
-          <SummaryCard statement={statement} />
-          <Card className="border-dashed">
-            <CardContent className="flex items-start gap-3 p-5">
-              <Wallet className="mt-0.5 size-5 text-muted-foreground" />
-              <div>
-                <div className="font-medium">
-                  No commission activity in this period.
-                </div>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Try switching to a different period above.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </>
       ) : (
         <>
+          {effectivePersonId && (
+            <SignoffPanel
+              tenantId={tenantId}
+              personId={effectivePersonId}
+              personName={statement.personName}
+              periodType={periodType}
+              periodKey={periodKey}
+              mode={mode}
+              effectiveRole={effectiveRole}
+              signoff={statement.signoff}
+            />
+          )}
+
           <SummaryCard statement={statement} />
-          <div className="space-y-3">
-            {items.map((item) => (
-              <StatementItemCard key={item.entryId} item={item} />
-            ))}
-          </div>
+
+          {items.length === 0 ? (
+            <Card className="border-dashed">
+              <CardContent className="flex items-start gap-3 p-5">
+                <Wallet className="mt-0.5 size-5 text-muted-foreground" />
+                <div>
+                  <div className="font-medium">
+                    No commission activity in this period.
+                  </div>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Try switching to a different period above.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              {items.map((item) => (
+                <StatementItemCard
+                  key={item.entryId}
+                  item={item}
+                  threads={threads}
+                  onDiscuss={(entryId) => openNewThread(entryId)}
+                />
+              ))}
+            </div>
+          )}
+
+          {(items.length > 0 || mode === "admin" || threads.length > 0) && (
+            <section className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold tracking-tight">
+                  Discussion
+                </h3>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                  onClick={() => openNewThread(undefined)}
+                >
+                  <MessageSquarePlus className="size-4" />
+                  Start a discussion
+                </Button>
+              </div>
+              {effectivePersonId && (
+                <ThreadList
+                  tenantId={tenantId}
+                  personId={effectivePersonId}
+                  periodType={periodType}
+                  periodKey={periodKey}
+                  mode={mode}
+                  effectiveRole={effectiveRole}
+                />
+              )}
+            </section>
+          )}
+
+          {effectivePersonId && (
+            <NewThreadDialog
+              tenantId={tenantId}
+              personId={effectivePersonId}
+              periodType={periodType}
+              periodKey={periodKey}
+              mode={mode}
+              open={dialogOpen}
+              onOpenChange={setDialogOpen}
+              entryId={dialogEntryId}
+              defaultSubject={dialogDefaultSubject}
+            />
+          )}
         </>
       )}
     </div>

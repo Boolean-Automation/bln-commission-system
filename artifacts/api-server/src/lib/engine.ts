@@ -3,12 +3,14 @@ import {
   db,
   jobsTable,
   peopleTable,
+  projectsTable,
   commissionPlansTable,
   ruleInstancesTable,
   commissionEntriesTable,
   commissionEventsTable,
   type Job,
   type Person,
+  type Project,
   type RuleInstanceRow,
 } from "@workspace/db";
 import {
@@ -61,6 +63,17 @@ function pickTier(tiers: Tier[], ytd: number): Tier | undefined {
     if (t.ytdUpTo === null || ytd < t.ytdUpTo) return t;
   }
   return tiers[tiers.length - 1];
+}
+
+function normalizeJobNumber(jobNumber: string | null): string | null {
+  if (!jobNumber) return null;
+  return jobNumber.trim().toLowerCase();
+}
+
+function projectsForJob(projects: Project[], job: Job): Project[] {
+  const jobNumber = normalizeJobNumber(job.jobNumber);
+  if (!jobNumber) return [];
+  return projects.filter((p) => normalizeJobNumber(p.jobNumber) === jobNumber);
 }
 
 // Cross-cutting per-rule exclusions stored on the rule instance's `appliesTo`.
@@ -117,11 +130,11 @@ function resolveCustomRecipients(
 ): Person[] {
   if (recipient.source === "salesRep") {
     const p = findPersonByName(people, job.salesRep);
-    return p ? [p] : [];
+    return p && p.active ? [p] : [];
   }
   if (recipient.source === "manager") {
     const p = findPersonByName(people, job.manager);
-    return p ? [p] : [];
+    return p && p.active ? [p] : [];
   }
   // match by position substring and/or role
   const positionContains = (recipient.positionContains ?? "").trim().toLowerCase();
@@ -130,6 +143,7 @@ function resolveCustomRecipients(
     .filter((r) => r.length > 0);
   if (!positionContains && rolesInclude.length === 0) return [];
   return people.filter((p) => {
+    if (!p.active) return false;
     const byPosition =
       positionContains.length > 0 &&
       (p.position ?? "").trim().toLowerCase().includes(positionContains);
@@ -169,6 +183,10 @@ export async function recomputeTenant(
     .select()
     .from(jobsTable)
     .where(eq(jobsTable.tenantId, tenantId));
+  const projects = await db
+    .select()
+    .from(projectsTable)
+    .where(eq(projectsTable.tenantId, tenantId));
   const people = await db
     .select()
     .from(peopleTable)
@@ -179,6 +197,23 @@ export async function recomputeTenant(
   // value the tiered_ytd_rate rule uses to pick a commission tier, and what the
   // People page displays.
   await computeYtdSales(jobs, people);
+
+  // Job status filter mirrors data-source workflows that only create
+  // commission rows once a job reaches a milestone (e.g. Airtable's
+  // "When Job Active Status Changes" automation only fires on Open/Closed).
+  // When absent, all non-cancelled jobs are processed. Matching is
+  // case-insensitive against `Job.status`.
+  const statusFilter = enabled.find(
+    (i) => i.ruleModuleKey === "job_status_filter",
+  );
+  const allowedStatuses =
+    statusFilter && Array.isArray(statusFilter.params["allowedStatuses"])
+      ? new Set(
+          (statusFilter.params["allowedStatuses"] as string[]).map((s) =>
+            s.trim().toLowerCase(),
+          ),
+        )
+      : null;
 
   const gatekeeper = enabled.find((i) => i.ruleModuleKey === "gp_gatekeeper");
   const gateFloor = gatekeeper ? num(gatekeeper.params["floorPct"], 40) : null;
@@ -195,10 +230,27 @@ export async function recomputeTenant(
     return job.gpPct < gateFloor;
   };
 
+  const isProjectGated = (project: Project, type: string): boolean => {
+    if (gateFloor === null) return false;
+    if (!gatedTypes.has(type)) return false;
+    if (project.gpPct === null || project.gpPct === undefined) return false;
+    return project.gpPct < gateFloor;
+  };
+
+  const reviewBonus = enabled.find((i) => i.ruleModuleKey === "review_bonus");
+  const reviewBonusAmount = reviewBonus
+    ? num(reviewBonus.params["amountPerReview"], 50)
+    : 0;
+
   const desired: DesiredEntry[] = [];
 
   for (const job of jobs) {
     if (job.cancelled) continue;
+    if (
+      allowedStatuses &&
+      !allowedStatuses.has((job.status ?? "").trim().toLowerCase())
+    )
+      continue;
     const total = job.totalAmount ?? 0;
     const gp = job.gpAmount ?? 0;
     const label = `Job ${job.jobNumber}${job.customer ? ` - ${job.customer}` : ""}`;
@@ -209,15 +261,15 @@ export async function recomputeTenant(
       if (isJobExcluded(inst, job, people)) continue;
       if (inst.ruleModuleKey === "tiered_ytd_rate") {
         const rep = findPersonByName(people, job.salesRep);
-        if (!rep) continue;
+        if (!rep || !rep.active) continue;
         const positions = Array.isArray(inst.params["positions"])
           ? (inst.params["positions"] as PositionTiers[])
           : [];
-        const position = rep.position ?? positions[0]?.position ?? null;
+        const position = rep.position ?? null;
         const repPosition = normalizePosition(position);
-        const table =
-          positions.find((p) => normalizePosition(p.position) === repPosition) ??
-          positions[0];
+        const table = positions.find(
+          (p) => normalizePosition(p.position) === repPosition,
+        );
         if (!table) continue;
         const ytd = rep.ytdSales ?? 0;
         const tier = pickTier(table.tiers, ytd);
@@ -273,6 +325,7 @@ export async function recomputeTenant(
         let managers: Person[];
         if (positionContains || rolesInclude.length > 0) {
           managers = people.filter((p) => {
+            if (!p.active) return false;
             const byPosition =
               positionContains !== null &&
               (p.position ?? "")
@@ -288,7 +341,7 @@ export async function recomputeTenant(
           });
         } else {
           const m = findPersonByName(people, managerName);
-          managers = m ? [m] : [];
+          managers = m && m.active ? [m] : [];
         }
         if (managers.length === 0) continue;
 
@@ -329,38 +382,99 @@ export async function recomputeTenant(
           });
         }
       } else if (inst.ruleModuleKey === "pm_gp_rate") {
-        const mgr = findPersonByName(people, job.manager);
-        if (!mgr) continue;
         const rate = num(inst.params["rate"], 0.02);
         const type =
           inst.params["type"] === "PMM" ? "PMM" : ("PM" as "PM" | "PMM");
-        const gated = isGated(job, type);
-        const amount = gated ? 0 : round2(gp * rate);
-        desired.push({
-          dedupeKey: `${inst.id}:${job.id}:${mgr.id}:${type}`,
-          personId: mgr.id,
-          personName: mgr.name,
-          type,
-          sourceKind: "job",
-          sourceId: job.id,
-          sourceLabel: label,
-          amount,
-          positionAtCosted: mgr.position ?? null,
-          ruleInstanceIds: [inst.id],
-          computationSnapshot: {
-            rule: "pm_gp_rate",
-            projectGp: gp,
-            rate,
-            gpPct: job.gpPct,
-            gated,
-            formula: `${(rate * 100).toFixed(2)}% x ${gp}`,
-          },
-        });
+        // `recipientSource` lets admins point the rule at either canonical
+        // project field. Default preserves prior behavior (PMM → manager,
+        // PM → leadManager fallback manager). Tenants whose Airtable layout
+        // doesn't match this convention (e.g. Paragon's PMM is the project
+        // Coordinator) configure it explicitly.
+        const recipientSource =
+          inst.params["recipientSource"] === "manager"
+            ? "manager"
+            : inst.params["recipientSource"] === "leadManager"
+              ? "leadManager"
+              : null;
+        const jobProjects = projectsForJob(projects, job);
+        if (jobProjects.length > 0) {
+          for (const project of jobProjects) {
+            const managerName =
+              recipientSource === "manager"
+                ? project.manager
+                : recipientSource === "leadManager"
+                  ? project.leadManager
+                  : type === "PMM"
+                    ? project.manager
+                    : project.leadManager ?? project.manager;
+            const mgr = findPersonByName(people, managerName);
+            if (!mgr || !mgr.active) continue;
+            const projectGp = project.gpAmount ?? 0;
+            const review =
+              reviewBonusAmount > 0 && (project.googleReviewStars ?? 0) >= 5
+                ? reviewBonusAmount
+                : 0;
+            const gated = isProjectGated(project, type);
+            const amount = gated ? 0 : round2(projectGp * rate + review);
+            const projectLabel = `Project ${project.projectNumber}${
+              project.projectName ? ` - ${project.projectName}` : ""
+            }`;
+            desired.push({
+              dedupeKey: `${inst.id}:${project.id}:${mgr.id}:${type}`,
+              personId: mgr.id,
+              personName: mgr.name,
+              type,
+              sourceKind: "project",
+              sourceId: project.id,
+              sourceLabel: projectLabel,
+              amount,
+              positionAtCosted: mgr.position ?? null,
+              ruleInstanceIds: [inst.id],
+              computationSnapshot: {
+                rule: "pm_gp_rate",
+                projectNumber: project.projectNumber,
+                projectGp,
+                rate,
+                reviewBonus: review,
+                gpPct: project.gpPct,
+                gated,
+                formula: `${(rate * 100).toFixed(2)}% x ${projectGp}${
+                  review ? ` + ${review}` : ""
+                }`,
+              },
+            });
+          }
+        } else {
+          const mgr = findPersonByName(people, job.manager);
+          if (!mgr || !mgr.active) continue;
+          const gated = isGated(job, type);
+          const amount = gated ? 0 : round2(gp * rate);
+          desired.push({
+            dedupeKey: `${inst.id}:${job.id}:${mgr.id}:${type}`,
+            personId: mgr.id,
+            personName: mgr.name,
+            type,
+            sourceKind: "job",
+            sourceId: job.id,
+            sourceLabel: label,
+            amount,
+            positionAtCosted: mgr.position ?? null,
+            ruleInstanceIds: [inst.id],
+            computationSnapshot: {
+              rule: "pm_gp_rate",
+              projectGp: gp,
+              rate,
+              gpPct: job.gpPct,
+              gated,
+              formula: `${(rate * 100).toFixed(2)}% x ${gp}`,
+            },
+          });
+        }
       } else if (inst.ruleModuleKey === "referral_bonus") {
         if (!job.leadSource) continue;
         if (!job.leadSource.toLowerCase().includes("referral")) continue;
         const rep = findPersonByName(people, job.salesRep);
-        if (!rep) continue;
+        if (!rep || !rep.active) continue;
         // Roles already compensated on the sale (e.g. SL/SM) are excluded from
         // the referral bonus per the rate card.
         const excludeRoles = (
@@ -418,6 +532,16 @@ export async function recomputeTenant(
     }
   }
 
+  // Collapse duplicate desired rows produced when the same logical commission
+  // is enqueued from more than one path (e.g. a project-based PM rule iterated
+  // through multiple jobs that share a Job Number). The computed amount is a
+  // deterministic function of (rule, project|job, person, type), so the second
+  // entry is identical to the first; the unique (tenant_id, dedupe_key)
+  // constraint would otherwise reject the duplicate insert.
+  const byKey = new Map<string, DesiredEntry>();
+  for (const d of desired) byKey.set(d.dedupeKey, d);
+  const deduped = [...byKey.values()];
+
   // Reconcile against existing rule-derived entries (dedupeKey not null).
   const existing = await db
     .select()
@@ -429,7 +553,7 @@ export async function recomputeTenant(
       ),
     );
   const existingByKey = new Map(existing.map((e) => [e.dedupeKey as string, e]));
-  const desiredKeys = new Set(desired.map((d) => d.dedupeKey));
+  const desiredKeys = new Set(deduped.map((d) => d.dedupeKey));
 
   let created = 0;
   let updated = 0;
@@ -437,7 +561,7 @@ export async function recomputeTenant(
 
   const now = new Date();
 
-  for (const d of desired) {
+  for (const d of deduped) {
     const prev = existingByKey.get(d.dedupeKey);
     if (!prev) {
       // Each ledger mutation + its audit event are written atomically so the

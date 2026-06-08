@@ -4,6 +4,7 @@ import {
   tenantsTable,
   peopleTable,
   jobsTable,
+  projectsTable,
   schemaMappingsTable,
   type EntityMapping,
 } from "@workspace/db";
@@ -13,6 +14,7 @@ import {
   type SourceRecord,
 } from "./providers";
 import { recomputeTenant, type RecomputeResult } from "./engine";
+import { mergeCanonicalDefaults } from "./defaultSchemaMapping";
 
 function parseNumber(v: unknown): number | null {
   if (v === null || v === undefined) return null;
@@ -101,6 +103,8 @@ export type SyncResult = {
   peopleRemoved: number;
   jobsUpserted: number;
   jobsRemoved: number;
+  projectsUpserted: number;
+  projectsRemoved: number;
   recompute: RecomputeResult;
 };
 
@@ -127,9 +131,10 @@ export async function syncTenant(tenantId: string): Promise<SyncResult> {
     .select()
     .from(schemaMappingsTable)
     .where(eq(schemaMappingsTable.tenantId, tenantId));
-  const entities = mapping?.entities ?? [];
+  const entities = mergeCanonicalDefaults((mapping?.entities ?? []) as EntityMapping[]);
   const personEntity = entities.find((e) => e.entityKind === "person");
   const jobEntity = entities.find((e) => e.entityKind === "job");
+  const projectEntity = entities.find((e) => e.entityKind === "project");
   if (!personEntity?.tableName) {
     throw new Error("Map the People table before syncing");
   }
@@ -139,6 +144,7 @@ export async function syncTenant(tenantId: string): Promise<SyncResult> {
 
   const personFields = buildFieldMap(personEntity);
   const jobFields = buildFieldMap(jobEntity);
+  const projectFields = buildFieldMap(projectEntity);
 
   // --- People ---
   const personRecords = await provider.fetchRecords(
@@ -225,6 +231,64 @@ export async function syncTenant(tenantId: string): Promise<SyncResult> {
     jobsUpserted++;
   }
 
+  // --- Projects ---
+  let projectsUpserted = 0;
+  let projectsRemoved = 0;
+  if (projectEntity?.tableName) {
+    const projectRecords = await provider.fetchRecords(
+      connectionId,
+      projectEntity.tableName,
+    );
+    const projectsSeen: string[] = [];
+    for (const rec of projectRecords) {
+      projectsSeen.push(rec.id);
+      const get = reader(projectFields, rec);
+      const projectNumber = parseStr(get("projectNumber"));
+      if (!projectNumber) continue;
+      const values = {
+        projectNumber,
+        projectName: parseStr(get("projectName")),
+        jobNumber: parseStr(get("jobNumber")),
+        manager: parseStr(get("manager")),
+        leadManager: parseStr(get("leadManager")),
+        status: parseStr(get("status")),
+        active: parseBool(get("active"), false),
+        totalAmount: parseNumber(get("totalAmount")),
+        gpAmount: parseNumber(get("gpAmount")),
+        gpPct: parseNumber(get("gpPct")),
+        jobTotalAmount: parseNumber(get("jobTotalAmount")),
+        jobGpAmount: parseNumber(get("jobGpAmount")),
+        projectToJobRatio: parseNumber(get("projectToJobRatio")),
+        googleReviewStars: parseNumber(get("googleReviewStars")),
+        startDate: parseStr(get("startDate")),
+        endDate: parseStr(get("endDate")),
+      };
+      await db
+        .insert(projectsTable)
+        .values({ tenantId, airtableRecordId: rec.id, ...values })
+        .onConflictDoUpdate({
+          target: [projectsTable.tenantId, projectsTable.airtableRecordId],
+          set: values,
+        });
+      projectsUpserted++;
+    }
+
+    projectsRemoved = (
+      await db
+        .delete(projectsTable)
+        .where(
+          and(
+            eq(projectsTable.tenantId, tenantId),
+            isNotNull(projectsTable.airtableRecordId),
+            projectsSeen.length > 0
+              ? notInArray(projectsTable.airtableRecordId, projectsSeen)
+              : undefined,
+          ),
+        )
+        .returning({ id: projectsTable.id })
+    ).length;
+  }
+
   // Prune rows previously synced from the source that are now gone. Seed/manual
   // rows (airtableRecordId null) are never touched.
   const peopleRemoved = (
@@ -264,5 +328,13 @@ export async function syncTenant(tenantId: string): Promise<SyncResult> {
 
   const recompute = await recomputeTenant(tenantId);
 
-  return { peopleUpserted, peopleRemoved, jobsUpserted, jobsRemoved, recompute };
+  return {
+    peopleUpserted,
+    peopleRemoved,
+    jobsUpserted,
+    jobsRemoved,
+    projectsUpserted,
+    projectsRemoved,
+    recompute,
+  };
 }

@@ -13,6 +13,7 @@ import manualInputsRouter from "./manualInputs";
 import reportsRouter from "./reports";
 import repDashboardRouter from "./repDashboard";
 import statementsRouter from "./statements";
+import statementCollabRouter from "./statementCollab";
 import airtableRouter from "./airtable";
 import providersRouter from "./providers";
 import { requireAuth } from "../lib/rbac";
@@ -29,6 +30,12 @@ router.use(requireAuth);
 
 router.use(accessRouter);
 router.use(tenantsRouter);
+// Rep-accessible routes must be mounted before sub-routers that attach a
+// blanket `requireTenantAccess` guard at `/tenants/:tenantId` — those guards
+// would otherwise reject a rep's request before it reaches its real handler.
+router.use(repDashboardRouter);
+router.use(statementsRouter);
+router.use(statementCollabRouter);
 router.use(peopleRouter);
 router.use(schemaRouter);
 router.use(positionsRouter);
@@ -37,8 +44,6 @@ router.use(commissionsRouter);
 router.use(insightsRouter);
 router.use(manualInputsRouter);
 router.use(reportsRouter);
-router.use(repDashboardRouter);
-router.use(statementsRouter);
 router.use(airtableRouter);
 router.use(providersRouter);
 
