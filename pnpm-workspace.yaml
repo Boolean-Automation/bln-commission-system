@@ -75,6 +75,11 @@ onlyBuiltDependencies:
   - unrs-resolver
 
 overrides:
+  # Security: proxy-addr < 2.0.8 lets a client spoof its IP through an
+  # IPv4-mapped IPv6 address (CVE-2026-90711, critical); body-parser 2.x
+  # below 2.4.0 can be knocked over by trailing bytes (CVE-2026-111181).
+  "proxy-addr": ">=2.0.8"
+  "body-parser@>=2.0.0 <2.4.0": ">=2.4.0"
   # replit uses linux-x64 only, we can exclude all other platforms
   "esbuild>@esbuild/darwin-x64": "-"
   "esbuild>@esbuild/freebsd-arm64": "-"
